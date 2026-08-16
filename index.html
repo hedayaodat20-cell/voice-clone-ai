@@ -552,16 +552,11 @@
     </footer>
 </main>
 <script>
-// ========================================
-// Voice Clone AI - Frontend
-// ========================================
-
 const API_URL = "https://voice-clone-ai-gvoo.onrender.com";
 
-
-// -------------------------------
+// ===============================
 // HTML Elements
-// -------------------------------
+// ===============================
 
 const voiceFile = document.getElementById("voiceFile");
 const uploadArea = document.getElementById("uploadArea");
@@ -575,10 +570,13 @@ const characterCount = document.getElementById("characterCount");
 
 const generateButton = document.getElementById("generateButton");
 
+const audioPlayer = document.getElementById("audioPlayer");
+const audioPlaceholder = document.getElementById("audioPlaceholder");
 
-// -------------------------------
+
+// ===============================
 // File Selection
-// -------------------------------
+// ===============================
 
 voiceFile.addEventListener("change", function () {
 
@@ -593,13 +591,12 @@ voiceFile.addEventListener("change", function () {
 
     selectedFile.hidden = false;
     uploadArea.style.display = "none";
-
 });
 
 
-// -------------------------------
+// ===============================
 // Remove File
-// -------------------------------
+// ===============================
 
 removeFile.addEventListener("click", function () {
 
@@ -607,13 +604,12 @@ removeFile.addEventListener("click", function () {
 
     selectedFile.hidden = true;
     uploadArea.style.display = "flex";
-
 });
 
 
-// -------------------------------
+// ===============================
 // File Size
-// -------------------------------
+// ===============================
 
 function formatFileSize(bytes) {
 
@@ -621,12 +617,7 @@ function formatFileSize(bytes) {
         return "0 Bytes";
     }
 
-    const units = [
-        "Bytes",
-        "KB",
-        "MB",
-        "GB"
-    ];
+    const units = ["Bytes", "KB", "MB", "GB"];
 
     const index = Math.floor(
         Math.log(bytes) / Math.log(1024)
@@ -635,28 +626,27 @@ function formatFileSize(bytes) {
     return (
         parseFloat(
             (bytes / Math.pow(1024, index)).toFixed(2)
-        )
-        + " "
-        + units[index]
+        ) +
+        " " +
+        units[index]
     );
 }
 
 
-// -------------------------------
+// ===============================
 // Character Counter
-// -------------------------------
+// ===============================
 
 textInput.addEventListener("input", function () {
 
     characterCount.textContent =
         textInput.value.length;
-
 });
 
 
-// -------------------------------
+// ===============================
 // Generate Voice
-// -------------------------------
+// ===============================
 
 generateButton.addEventListener(
     "click",
@@ -667,7 +657,7 @@ generateButton.addEventListener(
 
 
         // ---------------------------
-        // Check file
+        // Check voice
         // ---------------------------
 
         if (!file) {
@@ -710,21 +700,10 @@ generateButton.addEventListener(
 
         try {
 
-            // -----------------------
-            // Form Data
-            // -----------------------
-
             const formData = new FormData();
 
-            formData.append(
-                "file",
-                file
-            );
-
-            formData.append(
-                "text",
-                text
-            );
+            formData.append("file", file);
+            formData.append("text", text);
 
 
             // -----------------------
@@ -741,7 +720,7 @@ generateButton.addEventListener(
 
 
             // -----------------------
-            // Error handling
+            // Handle errors
             // -----------------------
 
             if (!response.ok) {
@@ -761,55 +740,37 @@ generateButton.addEventListener(
 
                 } catch (e) {}
 
-                throw new Error(
-                    errorMessage
-                );
+                throw new Error(errorMessage);
             }
 
 
             // -----------------------
-            // Receive MP3
+            // Receive audio
             // -----------------------
 
             const audioBlob =
                 await response.blob();
 
-
-            // -----------------------
-            // Create Audio URL
-            // -----------------------
-
             const audioURL =
-                URL.createObjectURL(
-                    audioBlob
-                );
+                URL.createObjectURL(audioBlob);
 
 
             // -----------------------
-            // Play Audio
+            // Show audio player
             // -----------------------
 
-            const audio =
-                new Audio(audioURL);
+            audioPlayer.src = audioURL;
 
-            audio.controls = true;
+            audioPlayer.hidden = false;
 
-            audio.play();
+            audioPlaceholder.style.display = "none";
 
 
             // -----------------------
-            // Success
+            // Play
             // -----------------------
 
-            alert(
-                "🎉 Your voice has been generated successfully!"
-            );
-
-
-            console.log(
-                "Generated audio:",
-                audioURL
-            );
+            await audioPlayer.play();
 
 
         } catch (error) {
@@ -826,28 +787,17 @@ generateButton.addEventListener(
 
         } finally {
 
-            // -----------------------
-            // Reset Button
-            // -----------------------
-
             generateButton.classList.remove(
                 "loading"
             );
 
             generateButton.innerHTML = `
                 <span class="button-icon">✨</span>
-                Generate Voice
+                <span>Generate Voice</span>
             `;
-
         }
-
     }
 );
-        alert(
-            "Could not connect to the Voice Clone server."
-        );
-    }
-});
 </script>
 </body>
 </html>
