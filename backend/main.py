@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 import os
+import uuid
 
 app = FastAPI()
 
@@ -16,10 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
-FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
-UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+UPLOAD_FOLDER = "uploads"
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -35,9 +32,13 @@ def home():
 @app.post("/upload")
 async def upload_audio(file: UploadFile = File(...)):
 
+    extension = os.path.splitext(file.filename)[1]
+
+    filename = f"{uuid.uuid4()}{extension}"
+
     file_path = os.path.join(
         UPLOAD_FOLDER,
-        file.filename
+        filename
     )
 
     with open(file_path, "wb") as audio_file:
@@ -45,5 +46,5 @@ async def upload_audio(file: UploadFile = File(...)):
 
     return {
         "message": "تم رفع الملف بنجاح",
-        "filename": file.filename
+        "filename": filename
     }
