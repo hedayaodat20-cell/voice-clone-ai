@@ -6,8 +6,9 @@ from io import BytesIO
 import os
 import httpx
 
+
 # ========================================
-# Load Environment Variables
+# Environment
 # ========================================
 
 load_dotenv()
@@ -62,9 +63,9 @@ async def generate_voice(
     text: str = Form(...)
 ):
 
-    # ------------------------------------
-    # Check API Key
-    # ------------------------------------
+    # ====================================
+    # API KEY
+    # ====================================
 
     if not ELEVENLABS_API_KEY:
 
@@ -74,9 +75,9 @@ async def generate_voice(
         )
 
 
-    # ------------------------------------
-    # Check Text
-    # ------------------------------------
+    # ====================================
+    # TEXT
+    # ====================================
 
     text = text.strip()
 
@@ -88,9 +89,23 @@ async def generate_voice(
         )
 
 
-    # ------------------------------------
-    # Check Audio File
-    # ------------------------------------
+    # ====================================
+    # FILE INFORMATION
+    # ====================================
+
+    filename = (file.filename or "").lower()
+    content_type = (file.content_type or "").lower()
+
+    # Temporary diagnostics
+    print("================================")
+    print("FILE NAME:", file.filename)
+    print("CONTENT TYPE:", file.content_type)
+    print("================================")
+
+
+    # ====================================
+    # AUDIO VALIDATION
+    # ====================================
 
     allowed_extensions = (
         ".mp3",
@@ -98,25 +113,35 @@ async def generate_voice(
         ".m4a",
         ".webm",
         ".mpeg",
-        ".mpga"
+        ".mpga",
+        ".aac",
+        ".ogg",
+        ".flac"
     )
 
-    filename = (file.filename or "").lower()
+    is_valid_extension = filename.endswith(
+        allowed_extensions
+    )
 
-    if not filename.endswith(allowed_extensions):
+    is_audio_content = content_type.startswith(
+        "audio/"
+    )
+
+
+    if not is_valid_extension and not is_audio_content:
 
         raise HTTPException(
             status_code=400,
             detail=(
-                "Unsupported audio format. "
-                "Please upload MP3, WAV, M4A, or WEBM."
+                "The uploaded file was not recognized "
+                "as an audio file."
             )
         )
 
 
-    # ------------------------------------
-    # Read Audio
-    # ------------------------------------
+    # ====================================
+    # READ AUDIO
+    # ====================================
 
     audio_data = await file.read()
 
@@ -128,9 +153,16 @@ async def generate_voice(
         )
 
 
+    print(
+        "AUDIO SIZE:",
+        len(audio_data),
+        "bytes"
+    )
+
+
     # ====================================
     # STEP 1
-    # Create Instant Voice Clone
+    # CREATE INSTANT VOICE CLONE
     # ====================================
 
     headers = {
@@ -165,53 +197,64 @@ async def generate_voice(
 
     except Exception as error:
 
-        print("Clone connection error:", error)
+        print(
+            "CLONE CONNECTION ERROR:",
+            error
+        )
 
         raise HTTPException(
             status_code=502,
-            detail="Could not connect to the voice cloning service."
+            detail=(
+                "Could not connect to the "
+                "voice cloning service."
+            )
         )
 
 
-    # ------------------------------------
-    # Handle Clone Error
-    # ------------------------------------
+    # ====================================
+    # CLONE RESPONSE
+    # ====================================
+
+    print(
+        "CLONE STATUS:",
+        clone_response.status_code
+    )
+
+    print(
+        "CLONE RESPONSE:",
+        clone_response.text
+    )
+
 
     if clone_response.status_code != 200:
 
-        print(
-            "ElevenLabs clone error:",
-            clone_response.status_code,
-            clone_response.text
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "Voice cloning failed. "
+                "Check the Render logs for details."
+            )
         )
 
-        try:
-            error_data = clone_response.json()
 
-            detail = (
-                error_data
-                .get("detail", {})
-                .get("message")
-            )
+    # ====================================
+    # GET VOICE ID
+    # ====================================
 
-        except Exception:
+    try:
 
-            detail = None
+        clone_result = clone_response.json()
 
+    except Exception:
 
         raise HTTPException(
             status_code=502,
-            detail=detail or "Could not create the voice clone."
+            detail="Invalid response from voice cloning service."
         )
 
 
-    # ------------------------------------
-    # Get Voice ID
-    # ------------------------------------
-
-    clone_result = clone_response.json()
-
     voice_id = clone_result.get("voice_id")
+
 
     if not voice_id:
 
@@ -221,9 +264,15 @@ async def generate_voice(
         )
 
 
+    print(
+        "VOICE ID CREATED:",
+        voice_id
+    )
+
+
     # ====================================
     # STEP 2
-    # Generate Speech
+    # GENERATE SPEECH
     # ====================================
 
     tts_headers = {
@@ -254,34 +303,48 @@ async def generate_voice(
 
     except Exception as error:
 
-        print("TTS connection error:", error)
+        print(
+            "TTS CONNECTION ERROR:",
+            error
+        )
 
         raise HTTPException(
             status_code=502,
-            detail="Could not connect to the speech generation service."
+            detail=(
+                "Could not connect to the "
+                "speech generation service."
+            )
         )
 
 
-    # ------------------------------------
-    # Handle TTS Error
-    # ------------------------------------
+    # ====================================
+    # TTS RESPONSE
+    # ====================================
+
+    print(
+        "TTS STATUS:",
+        audio_response.status_code
+    )
+
 
     if audio_response.status_code != 200:
 
         print(
-            "ElevenLabs TTS error:",
-            audio_response.status_code,
+            "TTS RESPONSE:",
             audio_response.text
         )
 
         raise HTTPException(
             status_code=502,
-            detail="Could not generate the voice."
+            detail=(
+                "Speech generation failed. "
+                "Check the Render logs for details."
+            )
         )
 
 
     # ====================================
-    # Return Generated Audio
+    # RETURN AUDIO
     # ====================================
 
     return StreamingResponse(
