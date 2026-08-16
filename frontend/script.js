@@ -1,9 +1,12 @@
 // ========================================
-// Voice Clone - Frontend JavaScript
+// Voice Clone AI - Frontend
 // ========================================
 
+const API_URL = "https://voice-clone-ai-gvoo.onrender.com";
+
+
 // -------------------------------
-// Get HTML Elements
+// HTML Elements
 // -------------------------------
 
 const voiceFile = document.getElementById("voiceFile");
@@ -18,12 +21,9 @@ const characterCount = document.getElementById("characterCount");
 
 const generateButton = document.getElementById("generateButton");
 
-const audioPlayer = document.getElementById("audioPlayer");
-const audioPlaceholder = document.getElementById("audioPlaceholder");
-
 
 // -------------------------------
-// File Upload
+// File Selection
 // -------------------------------
 
 voiceFile.addEventListener("change", function () {
@@ -39,11 +39,12 @@ voiceFile.addEventListener("change", function () {
 
     selectedFile.hidden = false;
     uploadArea.style.display = "none";
+
 });
 
 
 // -------------------------------
-// Remove Selected File
+// Remove File
 // -------------------------------
 
 removeFile.addEventListener("click", function () {
@@ -52,11 +53,12 @@ removeFile.addEventListener("click", function () {
 
     selectedFile.hidden = true;
     uploadArea.style.display = "flex";
+
 });
 
 
 // -------------------------------
-// Format File Size
+// File Size
 // -------------------------------
 
 function formatFileSize(bytes) {
@@ -92,14 +94,14 @@ function formatFileSize(bytes) {
 
 textInput.addEventListener("input", function () {
 
-    const length = textInput.value.length;
+    characterCount.textContent =
+        textInput.value.length;
 
-    characterCount.textContent = length;
 });
 
 
 // -------------------------------
-// Generate Button
+// Generate / Upload
 // -------------------------------
 
 generateButton.addEventListener("click", async function () {
@@ -107,7 +109,8 @@ generateButton.addEventListener("click", async function () {
     const file = voiceFile.files[0];
     const text = textInput.value.trim();
 
-    // Check voice file
+
+    // Check file
 
     if (!file) {
 
@@ -133,7 +136,7 @@ generateButton.addEventListener("click", async function () {
     }
 
 
-    // Loading state
+    // Loading
 
     generateButton.classList.add("loading");
 
@@ -145,46 +148,40 @@ generateButton.addEventListener("click", async function () {
 
     try {
 
-        // Create form data
-
         const formData = new FormData();
 
         formData.append("file", file);
 
 
-        // Send audio to FastAPI
+        const response = await fetch(
+            `${API_URL}/upload`,
+            {
+                method: "POST",
+                body: formData
+            }
+        );
 
-        const response = await fetch("/upload", {
-            method: "POST",
-            body: formData
-        });
-
-
-        // Check response
 
         if (!response.ok) {
-            throw new Error("Upload failed");
+
+            throw new Error(
+                "Upload failed"
+            );
+
         }
 
 
-        const result = await response.json();
+        const data = await response.json();
 
 
-        console.log(result);
-
-
-        // Success
-
-        generateButton.classList.remove("loading");
-
-        generateButton.innerHTML = `
-            <span class="button-icon">✅</span>
-            Uploaded Successfully
-        `;
+        console.log(
+            "Backend response:",
+            data
+        );
 
 
         alert(
-            "تم رفع الملف الصوتي بنجاح! 🎙️"
+            "🎉 Voice sample uploaded successfully!"
         );
 
 
@@ -192,6 +189,12 @@ generateButton.addEventListener("click", async function () {
 
         console.error(error);
 
+        alert(
+            "❌ Could not connect to the Voice Clone server."
+        );
+
+
+    } finally {
 
         generateButton.classList.remove("loading");
 
@@ -200,10 +203,6 @@ generateButton.addEventListener("click", async function () {
             Generate Voice
         `;
 
-
-        alert(
-            "حدث خطأ أثناء رفع الملف الصوتي."
-        );
     }
 
 });
