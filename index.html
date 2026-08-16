@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Voice Clone AI</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="background-glow"></div>
+
+    <main class="app">
+
+        <!-- Header -->
+        <header class="header">
+
+            <div class="logo">
+                <span class="logo-icon">🎙️</span>
+                <span>Voice Clone</span>
+            </div>
+
+            <div class="status">
+                <span class="status-dot"></span>
+                AI Voice Studio
+            </div>
+
+        </header>
+
+
+        <!-- Hero -->
+        <section class="hero">
+
+            <p class="eyebrow">
+                AI VOICE STUDIO
+            </p>
+
+            <h1>
+                Your voice.<br>
+                <span>Reimagined.</span>
+            </h1>
+
+            <p class="hero-text">
+                Upload an authorized voice sample, write your text,
+                and generate natural speech.
+            </p>
+
+        </section>
+
+
+        <!-- Main Workspace -->
+        <section class="workspace">
+
+
+            <!-- Voice Upload Card -->
+            <div class="card">
+
+                <div class="step-number">
+                    01
+                </div>
+
+                <div class="card-header">
+
+                    <div>
+                        <h2>Add your voice</h2>
+
+                        <p>
+                            Upload an audio sample you have permission to use.
+                        </p>
+                    </div>
+
+                    <span class="card-icon">
+                        🎙️
+                    </span>
+
+                </div>
+
+
+                <!-- Upload Area -->
+                <label
+                    for="voiceFile"
+                    class="upload-area"
+                    id="uploadArea"
+                >
+
+                    <div class="upload-icon">
+                        ↑
+                    </div>
+
+                    <h3>
+                        Choose an audio file
+                    </h3>
+
+                    <p>
+                        MP3, WAV, M4A or other supported audio
+                    </p>
+
+                    <span class="upload-button">
+                        Browse files
+                    </span>
+
+                    <input
+                        type="file"
+                        id="voiceFile"
+                        accept="audio/*"
+                        hidden
+                    >
+
+                </label>
+
+
+                <!-- Selected File -->
+                <div
+                    class="selected-file"
+                    id="selectedFile"
+                    hidden
+                >
+
+                    <div class="file-icon">
+                        🎵
+                    </div>
+
+                    <div class="file-info">
+
+                        <strong id="fileName">
+                            Audio file
+                        </strong>
+
+                        <span id="fileSize">
+                            0 MB
+                        </span>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="remove-file"
+                        id="removeFile"
+                    >
+                        ×
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- Text Card -->
+            <div class="card">
+
+                <div class="step-number">
+                    02
+                </div>
+
+                <div class="card-header">
+
+                    <div>
+                        <h2>Write your text</h2>
+
+                        <p>
+                            Enter the words you want your voice to say.
+                        </p>
+                    </div>
+
+                    <span class="card-icon">
+                        ✍️
+                    </span>
+
+                </div>
+
+
+                <div class="textarea-wrapper">
+
+                    <textarea
+                        id="textInput"
+                        placeholder="Type something here..."
+                        maxlength="500"
+                    ></textarea>
+
+                    <div class="character-count">
+                        <span id="characterCount">0</span>
+                        / 500
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Generate Button -->
+            <button
+                type="button"
+                id="generateButton"
+                class="generate-button"
+            >
+
+                <span class="button-icon">
+                    ✨
+                </span>
+
+                <span>
+                    Generate Voice
+                </span>
+
+            </button>
+
+
+            <!-- Result -->
+            <div
+                class="card result-card"
+                id="resultCard"
+            >
+
+                <div class="step-number">
+                    03
+                </div>
+
+                <div class="card-header">
+
+                    <div>
+                        <h2>Your generated voice</h2>
+
+                        <p>
+                            Your generated audio will appear here.
+                        </p>
+                    </div>
+
+                    <span class="card-icon">
+                        🔊
+                    </span>
+
+                </div>
+
+
+                <div class="audio-container">
+
+                    <div class="audio-placeholder" id="audioPlaceholder">
+
+                        <div class="audio-placeholder-icon">
+                            🔊
+                        </div>
+
+                        <p>
+                            No generated audio yet
+                        </p>
+
+                    </div>
+
+
+                    <audio
+                        id="audioPlayer"
+                        controls
+                        hidden
+                    ></audio>
+
+                </div>
+
+            </div>
+
+
+        </section>
+
+
+        <!-- Footer -->
+        <footer>
+
+            <p>
+                Voice Clone AI
+            </p>
+
+            <span>
+                Use only voices you own or have permission to use.
+            </span>
+
+        </footer>
+
+    </main>
+
+
+    <!-- JavaScript -->
+    <script src="script.js"></script>
+
+</body>
+</html>
