@@ -655,107 +655,194 @@ textInput.addEventListener("input", function () {
 
 
 // -------------------------------
-// Generate / Upload
+// Generate Voice
 // -------------------------------
 
-generateButton.addEventListener("click", async function () {
+generateButton.addEventListener(
+    "click",
+    async function () {
 
-    const file = voiceFile.files[0];
-    const text = textInput.value.trim();
-
-
-    // Check file
-
-    if (!file) {
-
-        alert(
-            "Please upload an authorized voice sample first."
-        );
-
-        return;
-    }
+        const file = voiceFile.files[0];
+        const text = textInput.value.trim();
 
 
-    // Check text
+        // ---------------------------
+        // Check file
+        // ---------------------------
 
-    if (!text) {
+        if (!file) {
 
-        alert(
-            "Please write some text first."
-        );
-
-        textInput.focus();
-
-        return;
-    }
-
-
-    // Loading
-
-    generateButton.classList.add("loading");
-
-    generateButton.innerHTML = `
-        <span>⏳</span>
-        Uploading...
-    `;
-
-
-    try {
-
-        const formData = new FormData();
-
-        formData.append("file", file);
-
-
-        const response = await fetch(
-            `${API_URL}/upload`,
-            {
-                method: "POST",
-                body: formData
-            }
-        );
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Upload failed"
+            alert(
+                "Please upload your authorized voice sample first."
             );
 
+            return;
         }
 
 
-        const data = await response.json();
+        // ---------------------------
+        // Check text
+        // ---------------------------
+
+        if (!text) {
+
+            alert(
+                "Please write some text first."
+            );
+
+            textInput.focus();
+
+            return;
+        }
 
 
-        console.log(
-            "Backend response:",
-            data
-        );
+        // ---------------------------
+        // Loading
+        // ---------------------------
 
-
-        alert(
-            "🎉 Voice sample uploaded successfully!"
-        );
-
-
-    } catch (error) {
-
-        console.error(error);
-
-        alert(
-            "❌ Could not connect to the Voice Clone server."
-        );
-
-
-    } finally {
-
-        generateButton.classList.remove("loading");
+        generateButton.classList.add("loading");
 
         generateButton.innerHTML = `
-            <span class="button-icon">✨</span>
-            Generate Voice
+            <span>⏳</span>
+            Generating Voice...
         `;
+
+
+        try {
+
+            // -----------------------
+            // Form Data
+            // -----------------------
+
+            const formData = new FormData();
+
+            formData.append(
+                "file",
+                file
+            );
+
+            formData.append(
+                "text",
+                text
+            );
+
+
+            // -----------------------
+            // Send to Backend
+            // -----------------------
+
+            const response = await fetch(
+                `${API_URL}/generate`,
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
+
+
+            // -----------------------
+            // Error handling
+            // -----------------------
+
+            if (!response.ok) {
+
+                let errorMessage =
+                    "Voice generation failed.";
+
+                try {
+
+                    const errorData =
+                        await response.json();
+
+                    if (errorData.detail) {
+                        errorMessage =
+                            errorData.detail;
+                    }
+
+                } catch (e) {}
+
+                throw new Error(
+                    errorMessage
+                );
+            }
+
+
+            // -----------------------
+            // Receive MP3
+            // -----------------------
+
+            const audioBlob =
+                await response.blob();
+
+
+            // -----------------------
+            // Create Audio URL
+            // -----------------------
+
+            const audioURL =
+                URL.createObjectURL(
+                    audioBlob
+                );
+
+
+            // -----------------------
+            // Play Audio
+            // -----------------------
+
+            const audio =
+                new Audio(audioURL);
+
+            audio.controls = true;
+
+            audio.play();
+
+
+            // -----------------------
+            // Success
+            // -----------------------
+
+            alert(
+                "🎉 Your voice has been generated successfully!"
+            );
+
+
+            console.log(
+                "Generated audio:",
+                audioURL
+            );
+
+
+        } catch (error) {
+
+            console.error(
+                "Generation error:",
+                error
+            );
+
+            alert(
+                "❌ " + error.message
+            );
+
+
+        } finally {
+
+            // -----------------------
+            // Reset Button
+            // -----------------------
+
+            generateButton.classList.remove(
+                "loading"
+            );
+
+            generateButton.innerHTML = `
+                <span class="button-icon">✨</span>
+                Generate Voice
+            `;
+
+        }
+
+    }
+);
         alert(
             "Could not connect to the Voice Clone server."
         );
