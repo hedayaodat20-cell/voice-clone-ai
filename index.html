@@ -3,285 +3,664 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Voice Clone AI</title>
-
-    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        :root {
+            --background: #08090d;
+            --card: rgba(18, 20, 28, 0.85);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text: #ffffff;
+            --muted: #9699a8;
+            --accent: #8b5cf6;
+            --accent-light: #a78bfa;
+            --danger: #ff6b6b;
+        }
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(
+                    circle at 50% 0%,
+                    rgba(139, 92, 246, 0.18),
+                    transparent 35%
+                ),
+                var(--background);
+            color: var(--text);
+            font-family:
+                Inter,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }
+        .background-glow {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            top: -250px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(139, 92, 246, 0.15);
+            filter: blur(100px);
+            pointer-events: none;
+            z-index: -1;
+        }
+        .app {
+            width: min(100% - 32px, 900px);
+            margin: auto;
+            padding: 32px 0 50px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 80px;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            font-weight: 700;
+        }
+        .logo-icon {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 38px;
+            height: 38px;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+            border-radius: 12px;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #4ade80;
+        }
+        .hero {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+        .eyebrow {
+            color: var(--accent-light);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            margin-bottom: 18px;
+        }
+        .hero h1 {
+            font-size: clamp(48px, 8vw, 78px);
+            line-height: 0.95;
+            letter-spacing: -4px;
+            margin-bottom: 25px;
+        }
+        .hero h1 span {
+            color: var(--accent-light);
+        }
+        .hero-text {
+            max-width: 550px;
+            margin: auto;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1.7;
+        }
+        .workspace {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .card {
+            position: relative;
+            padding: 28px;
+            background: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            backdrop-filter: blur(20px);
+        }
+        .step-number {
+            position: absolute;
+            top: 25px;
+            right: 28px;
+            color: rgba(255, 255, 255, 0.2);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 1px;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+        }
+        .card-header h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        .card-header p {
+            color: var(--muted);
+            font-size: 13px;
+        }
+        .card-icon {
+            font-size: 24px;
+        }
+        .upload-area {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 220px;
+            padding: 30px;
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 18px;
+            cursor: pointer;
+            transition: 0.25s ease;
+            text-align: center;
+        }
+        .upload-area:hover {
+            border-color: var(--accent);
+            background: rgba(139, 92, 246, 0.05);
+        }
+        .upload-icon {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 55px;
+            height: 55px;
+            margin-bottom: 15px;
+            border-radius: 16px;
+            background: rgba(139, 92, 246, 0.12);
+            color: var(--accent-light);
+            font-size: 28px;
+        }
+        .upload-area h3 {
+            font-size: 16px;
+            margin-bottom: 7px;
+        }
+        .upload-area p {
+            color: var(--muted);
+            font-size: 12px;
+            margin-bottom: 18px;
+        }
+        .upload-button {
+            padding: 9px 16px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .selected-file {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .file-icon {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: rgba(139, 92, 246, 0.12);
+        }
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+        .file-info strong {
+            font-size: 13px;
+            word-break: break-word;
+        }
+        .file-info span {
+            color: var(--muted);
+            font-size: 11px;
+        }
+        .remove-file {
+            border: none;
+            background: transparent;
+            color: var(--muted);
+            font-size: 25px;
+            cursor: pointer;
+        }
+        .remove-file:hover {
+            color: var(--danger);
+        }
+        .textarea-wrapper {
+            position: relative;
+        }
+        textarea {
+            width: 100%;
+            min-height: 180px;
+            padding: 18px;
+            resize: vertical;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            outline: none;
+            background: rgba(0, 0, 0, 0.2);
+            color: white;
+            font-family: inherit;
+            font-size: 15px;
+            line-height: 1.6;
+            transition: 0.25s ease;
+        }
+        textarea:focus {
+            border-color: rgba(139, 92, 246, 0.6);
+            box-shadow:
+                0 0 0 3px rgba(139, 92, 246, 0.08);
+        }
+        textarea::placeholder {
+            color: #626574;
+        }
+        .character-count {
+            position: absolute;
+            bottom: 12px;
+            right: 15px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+        .generate-button {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 17px;
+            border: none;
+            border-radius: 16px;
+            background: var(--accent);
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: 0.25s ease;
+        }
+        .generate-button:hover {
+            transform: translateY(-2px);
+            background: #7c3aed;
+            box-shadow:
+                0 12px 30px rgba(139, 92, 246, 0.25);
+        }
+        .generate-button:active {
+            transform: translateY(0);
+        }
+        .generate-button.loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+        .audio-container {
+            min-height: 130px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 16px;
+            background: rgba(0, 0, 0, 0.18);
+        }
+        .audio-placeholder {
+            text-align: center;
+            color: var(--muted);
+        }
+        .audio-placeholder-icon {
+            font-size: 30px;
+            margin-bottom: 8px;
+            opacity: 0.6;
+        }
+        .audio-placeholder p {
+            font-size: 12px;
+        }
+        #audioPlayer {
+            width: 90%;
+        }
+        footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 35px;
+            color: var(--muted);
+            font-size: 11px;
+            text-align: center;
+        }
+        footer p {
+            color: white;
+            font-weight: 600;
+        }
+        @media (max-width: 600px) {
+            .app {
+                width: min(100% - 22px, 900px);
+                padding-top: 20px;
+            }
+            .header {
+                margin-bottom: 55px;
+            }
+            .status {
+                display: none;
+            }
+            .hero h1 {
+                font-size: 50px;
+                letter-spacing: -3px;
+            }
+            .hero-text {
+                font-size: 14px;
+            }
+            .card {
+                padding: 22px;
+                border-radius: 20px;
+            }
+            .card-header h2 {
+                font-size: 18px;
+            }
+            footer {
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
-
 <body>
-
-    <div class="background-glow"></div>
-
-    <main class="app">
-
-        <!-- Header -->
-        <header class="header">
-
-            <div class="logo">
-                <span class="logo-icon">🎙️</span>
-                <span>Voice Clone</span>
+<div class="background-glow"></div>
+<main class="app">
+    <header class="header">
+        <div class="logo">
+            <span class="logo-icon">🎙️</span>
+            <span>Voice Clone</span>
+        </div>
+        <div class="status">
+            <span class="status-dot"></span>
+            AI Voice Studio
+        </div>
+    </header>
+    <section class="hero">
+        <p class="eyebrow">
+            AI VOICE STUDIO
+        </p>
+        <h1>
+            Your voice.<br>
+            <span>Reimagined.</span>
+        </h1>
+        <p class="hero-text">
+            Upload an authorized voice sample, write your text,
+            and generate natural speech.
+        </p>
+    </section>
+    <section class="workspace">
+        <div class="card">
+            <div class="step-number">
+                01
             </div>
-
-            <div class="status">
-                <span class="status-dot"></span>
-                AI Voice Studio
-            </div>
-
-        </header>
-
-
-        <!-- Hero -->
-        <section class="hero">
-
-            <p class="eyebrow">
-                AI VOICE STUDIO
-            </p>
-
-            <h1>
-                Your voice.<br>
-                <span>Reimagined.</span>
-            </h1>
-
-            <p class="hero-text">
-                Upload an authorized voice sample, write your text,
-                and generate natural speech.
-            </p>
-
-        </section>
-
-
-        <!-- Main Workspace -->
-        <section class="workspace">
-
-
-            <!-- Voice Upload Card -->
-            <div class="card">
-
-                <div class="step-number">
-                    01
-                </div>
-
-                <div class="card-header">
-
-                    <div>
-                        <h2>Add your voice</h2>
-
-                        <p>
-                            Upload an audio sample you have permission to use.
-                        </p>
-                    </div>
-
-                    <span class="card-icon">
-                        🎙️
-                    </span>
-
-                </div>
-
-
-                <!-- Upload Area -->
-                <label
-                    for="voiceFile"
-                    class="upload-area"
-                    id="uploadArea"
-                >
-
-                    <div class="upload-icon">
-                        ↑
-                    </div>
-
-                    <h3>
-                        Choose an audio file
-                    </h3>
-
+            <div class="card-header">
+                <div>
+                    <h2>Add your voice</h2>
                     <p>
-                        MP3, WAV, M4A or other supported audio
+                        Upload an audio sample you have permission to use.
                     </p>
-
-                    <span class="upload-button">
-                        Browse files
-                    </span>
-
-                    <input
-                        type="file"
-                        id="voiceFile"
-                        accept="audio/*"
-                        hidden
-                    >
-
-                </label>
-
-
-                <!-- Selected File -->
-                <div
-                    class="selected-file"
-                    id="selectedFile"
+                </div>
+                <span class="card-icon">
+                    🎙️
+                </span>
+            </div>
+            <label
+                for="voiceFile"
+                class="upload-area"
+                id="uploadArea"
+            >
+                <div class="upload-icon">
+                    ↑
+                </div>
+                <h3>
+                    Choose an audio file
+                </h3>
+                <p>
+                    MP3, WAV, M4A or other supported audio
+                </p>
+                <span class="upload-button">
+                    Browse files
+                </span>
+                <input
+                    type="file"
+                    id="voiceFile"
+                    accept="audio/*"
                     hidden
                 >
-
-                    <div class="file-icon">
-                        🎵
-                    </div>
-
-                    <div class="file-info">
-
-                        <strong id="fileName">
-                            Audio file
-                        </strong>
-
-                        <span id="fileSize">
-                            0 MB
-                        </span>
-
-                    </div>
-
-                    <button
-                        type="button"
-                        class="remove-file"
-                        id="removeFile"
-                    >
-                        ×
-                    </button>
-
-                </div>
-
-            </div>
-
-
-            <!-- Text Card -->
-            <div class="card">
-
-                <div class="step-number">
-                    02
-                </div>
-
-                <div class="card-header">
-
-                    <div>
-                        <h2>Write your text</h2>
-
-                        <p>
-                            Enter the words you want your voice to say.
-                        </p>
-                    </div>
-
-                    <span class="card-icon">
-                        ✍️
-                    </span>
-
-                </div>
-
-
-                <div class="textarea-wrapper">
-
-                    <textarea
-                        id="textInput"
-                        placeholder="Type something here..."
-                        maxlength="500"
-                    ></textarea>
-
-                    <div class="character-count">
-                        <span id="characterCount">0</span>
-                        / 500
-                    </div>
-
-                </div>
-
-            </div>
-
-
-            <!-- Generate Button -->
-            <button
-                type="button"
-                id="generateButton"
-                class="generate-button"
-            >
-
-                <span class="button-icon">
-                    ✨
-                </span>
-
-                <span>
-                    Generate Voice
-                </span>
-
-            </button>
-
-
-            <!-- Result -->
+            </label>
             <div
-                class="card result-card"
-                id="resultCard"
+                class="selected-file"
+                id="selectedFile"
+                hidden
             >
-
-                <div class="step-number">
-                    03
+                <div class="file-icon">
+                    🎵
                 </div>
-
-                <div class="card-header">
-
-                    <div>
-                        <h2>Your generated voice</h2>
-
-                        <p>
-                            Your generated audio will appear here.
-                        </p>
-                    </div>
-
-                    <span class="card-icon">
-                        🔊
+                <div class="file-info">
+                    <strong id="fileName">
+                        Audio file
+                    </strong>
+                    <span id="fileSize">
+                        0 MB
                     </span>
-
                 </div>
-
-
-                <div class="audio-container">
-
-                    <div class="audio-placeholder" id="audioPlaceholder">
-
-                        <div class="audio-placeholder-icon">
-                            🔊
-                        </div>
-
-                        <p>
-                            No generated audio yet
-                        </p>
-
-                    </div>
-
-
-                    <audio
-                        id="audioPlayer"
-                        controls
-                        hidden
-                    ></audio>
-
-                </div>
-
+                <button
+                    type="button"
+                    class="remove-file"
+                    id="removeFile"
+                >
+                    ×
+                </button>
             </div>
-
-
-        </section>
-
-
-        <!-- Footer -->
-        <footer>
-
-            <p>
-                Voice Clone AI
-            </p>
-
-            <span>
-                Use only voices you own or have permission to use.
+        </div>
+        <div class="card">
+            <div class="step-number">
+                02
+            </div>
+            <div class="card-header">
+                <div>
+                    <h2>Write your text</h2>
+                    <p>
+                        Enter the words you want your voice to say.
+                    </p>
+                </div>
+                <span class="card-icon">
+                    ✍️
+                </span>
+            </div>
+            <div class="textarea-wrapper">
+                <textarea
+                    id="textInput"
+                    placeholder="Type something here..."
+                    maxlength="500"
+                ></textarea>
+                <div class="character-count">
+                    <span id="characterCount">0</span>
+                    / 500
+                </div>
+            </div>
+        </div>
+        <button
+            type="button"
+            id="generateButton"
+            class="generate-button"
+        >
+            <span class="button-icon">
+                ✨
             </span>
-
-        </footer>
-
-    </main>
-
-
-    <!-- JavaScript -->
-    <script src="script.js"></script>
-
+            <span>
+                Generate Voice
+            </span>
+        </button>
+        <div
+            class="card result-card"
+            id="resultCard"
+        >
+            <div class="step-number">
+                03
+            </div>
+            <div class="card-header">
+                <div>
+                    <h2>Your generated voice</h2>
+                    <p>
+                        Your generated audio will appear here.
+                    </p>
+                </div>
+                <span class="card-icon">
+                    🔊
+                </span>
+            </div>
+            <div class="audio-container">
+                <div
+                    class="audio-placeholder"
+                    id="audioPlaceholder"
+                >
+                    <div class="audio-placeholder-icon">
+                        🔊
+                    </div>
+                    <p>
+                        No generated audio yet
+                    </p>
+                </div>
+                <audio
+                    id="audioPlayer"
+                    controls
+                    hidden
+                ></audio>
+            </div>
+        </div>
+    </section>
+    <footer>
+        <p>
+            Voice Clone AI
+        </p>
+        <span>
+            Use only voices you own or have permission to use.
+        </span>
+    </footer>
+</main>
+<script>
+const voiceFile = document.getElementById("voiceFile");
+const uploadArea = document.getElementById("uploadArea");
+const selectedFile = document.getElementById("selectedFile");
+const fileName = document.getElementById("fileName");
+const fileSize = document.getElementById("fileSize");
+const removeFile = document.getElementById("removeFile");
+const textInput = document.getElementById("textInput");
+const characterCount = document.getElementById("characterCount");
+const generateButton = document.getElementById("generateButton");
+const audioPlayer = document.getElementById("audioPlayer");
+const audioPlaceholder = document.getElementById("audioPlaceholder");
+voiceFile.addEventListener("change", function () {
+    const file = voiceFile.files[0];
+    if (!file) {
+        return;
+    }
+    fileName.textContent = file.name;
+    fileSize.textContent = formatFileSize(file.size);
+    selectedFile.hidden = false;
+    uploadArea.style.display = "none";
+});
+removeFile.addEventListener("click", function () {
+    voiceFile.value = "";
+    selectedFile.hidden = true;
+    uploadArea.style.display = "flex";
+});
+function formatFileSize(bytes) {
+    if (bytes === 0) {
+        return "0 Bytes";
+    }
+    const units = [
+        "Bytes",
+        "KB",
+        "MB",
+        "GB"
+    ];
+    const index = Math.floor(
+        Math.log(bytes) / Math.log(1024)
+    );
+    return (
+        parseFloat(
+            (bytes / Math.pow(1024, index)).toFixed(2)
+        )
+        + " "
+        + units[index]
+    );
+}
+textInput.addEventListener("input", function () {
+    characterCount.textContent =
+        textInput.value.length;
+});
+generateButton.addEventListener("click", async function () {
+    const file = voiceFile.files[0];
+    const text = textInput.value.trim();
+    if (!file) {
+        alert(
+            "Please upload an authorized voice sample first."
+        );
+        return;
+    }
+    if (!text) {
+        alert(
+            "Please write some text first."
+        );
+        textInput.focus();
+        return;
+    }
+    generateButton.classList.add("loading");
+    generateButton.innerHTML = `
+        <span>⏳</span>
+        Uploading...
+    `;
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await fetch(
+            "https://voice-clone-ai-gvoo.onrender.com/upload",
+            {
+                method: "POST",
+                body: formData
+            }
+        );
+        if (!response.ok) {
+            throw new Error(
+                "Upload failed"
+            );
+        }
+        const result = await response.json();
+        generateButton.classList.remove("loading");
+        generateButton.innerHTML = `
+            <span class="button-icon">✨</span>
+            Generate Voice
+        `;
+        alert(
+            "Voice sample uploaded successfully!"
+        );
+        console.log(result);
+    } catch (error) {
+        console.error(error);
+        generateButton.classList.remove("loading");
+        generateButton.innerHTML = `
+            <span class="button-icon">✨</span>
+            Generate Voice
+        `;
+        alert(
+            "Could not connect to the Voice Clone server."
+        );
+    }
+});
+</script>
 </body>
 </html>
