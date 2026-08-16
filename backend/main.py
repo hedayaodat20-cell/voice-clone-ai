@@ -1,8 +1,20 @@
 from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 import os
 
 app = FastAPI()
+
+# السماح لموقع GitHub Pages بالاتصال بالـ Backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://hedayaodat20-cell.github.io"
+    ],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -14,9 +26,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @app.get("/")
 def home():
-    return FileResponse(
-        os.path.join(FRONTEND_DIR, "index.html")
-    )
+    return {
+        "status": "online",
+        "message": "Voice Clone AI backend is running"
+    }
 
 
 @app.post("/upload")
