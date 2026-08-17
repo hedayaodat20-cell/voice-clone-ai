@@ -46,7 +46,6 @@ app.add_middleware(
 
 @app.get("/")
 def home():
-
     return {
         "status": "online",
         "message": "Voice Clone AI backend is running"
@@ -68,7 +67,6 @@ async def generate_voice(
     # ====================================
 
     if not ELEVENLABS_API_KEY:
-
         raise HTTPException(
             status_code=500,
             detail="ElevenLabs API key is not configured."
@@ -82,7 +80,6 @@ async def generate_voice(
     text = text.strip()
 
     if not text:
-
         raise HTTPException(
             status_code=400,
             detail="Please enter some text."
@@ -90,13 +87,9 @@ async def generate_voice(
 
 
     # ====================================
-    # FILE INFORMATION
+    # FILE INFO
     # ====================================
 
-    filename = (file.filename or "").lower()
-    content_type = (file.content_type or "").lower()
-
-    # Temporary diagnostics
     print("================================")
     print("FILE NAME:", file.filename)
     print("CONTENT TYPE:", file.content_type)
@@ -104,54 +97,10 @@ async def generate_voice(
 
 
     # ====================================
-    # AUDIO VALIDATION
-    # ====================================
-
-    allowed_extensions = (
-        ".mp3",
-        ".wav",
-        ".m4a",
-        ".webm",
-        ".mpeg",
-        ".mpga",
-        ".aac",
-        ".ogg",
-        ".flac"
-    )
-
-    is_valid_extension = filename.endswith(
-        allowed_extensions
-    )
-
-    is_audio_content = content_type.startswith(
-        "audio/"
-    )
-
-
-    if not is_valid_extension and not is_audio_content:
-
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                "The uploaded file was not recognized "
-                "as an audio file."
-            )
-        )
-
-
-    # ====================================
-    # READ AUDIO
+    # READ FILE
     # ====================================
 
     audio_data = await file.read()
-
-    if not audio_data:
-
-        raise HTTPException(
-            status_code=400,
-            detail="The audio file is empty."
-        )
-
 
     print(
         "AUDIO SIZE:",
@@ -160,9 +109,30 @@ async def generate_voice(
     )
 
 
+    if not audio_data:
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded audio file is empty."
+        )
+
+
     # ====================================
-    # STEP 1
-    # CREATE INSTANT VOICE CLONE
+    # BASIC FILE SIGNATURE CHECK
+    # ====================================
+
+    # We don't reject the file based only
+    # on extension or browser MIME type.
+
+    file_header = audio_data[:16]
+
+    print(
+        "FILE HEADER:",
+        file_header
+    )
+
+
+    # ====================================
+    # SEND AUDIO TO ELEVENLABS
     # ====================================
 
     headers = {
@@ -175,7 +145,7 @@ async def generate_voice(
 
     files = {
         "files": (
-            file.filename,
+            file.filename or "voice_audio",
             audio_data,
             file.content_type or "application/octet-stream"
         )
@@ -205,14 +175,14 @@ async def generate_voice(
         raise HTTPException(
             status_code=502,
             detail=(
-                "Could not connect to the "
-                "voice cloning service."
+                "Could not connect to "
+                "the voice cloning service."
             )
         )
 
 
     # ====================================
-    # CLONE RESPONSE
+    # ELEVENLABS RESPONSE
     # ====================================
 
     print(
@@ -228,32 +198,45 @@ async def generate_voice(
 
     if clone_response.status_code != 200:
 
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Voice cloning failed. "
-                "Check the Render logs for details."
+        try:
+
+            error_data = clone_response.json()
+
+            detail = error_data.get(
+                "detail",
+                "Voice cloning failed."
             )
-        )
 
+            if isinstance(detail, dict):
 
-    # ====================================
-    # GET VOICE ID
-    # ====================================
+                detail = detail.get(
+                    "message",
+                    "Voice cloning failed."
+                )
 
-    try:
+        except Exception:
 
-        clone_result = clone_response.json()
+            detail = (
+                "Voice cloning failed. "
+                "Check Render logs."
+            )
 
-    except Exception:
 
         raise HTTPException(
             status_code=502,
-            detail="Invalid response from voice cloning service."
+            detail=str(detail)
         )
 
 
-    voice_id = clone_result.get("voice_id")
+    # ====================================
+    # VOICE ID
+    # ====================================
+
+    clone_result = clone_response.json()
+
+    voice_id = clone_result.get(
+        "voice_id"
+    )
 
 
     if not voice_id:
@@ -265,14 +248,13 @@ async def generate_voice(
 
 
     print(
-        "VOICE ID CREATED:",
+        "VOICE ID:",
         voice_id
     )
 
 
     # ====================================
-    # STEP 2
-    # GENERATE SPEECH
+    # TEXT TO SPEECH
     # ====================================
 
     tts_headers = {
@@ -311,8 +293,8 @@ async def generate_voice(
         raise HTTPException(
             status_code=502,
             detail=(
-                "Could not connect to the "
-                "speech generation service."
+                "Could not connect to "
+                "the speech generation service."
             )
         )
 
@@ -338,13 +320,13 @@ async def generate_voice(
             status_code=502,
             detail=(
                 "Speech generation failed. "
-                "Check the Render logs for details."
+                "Check Render logs."
             )
         )
 
 
     # ====================================
-    # RETURN AUDIO
+    # RETURN MP3
     # ====================================
 
     return StreamingResponse(
