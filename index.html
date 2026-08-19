@@ -1,15 +1,20 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Voice Clone AI</title>
+
     <style>
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         :root {
             --background: #08090d;
             --card: rgba(18, 20, 28, 0.85);
@@ -20,8 +25,10 @@
             --accent-light: #a78bfa;
             --danger: #ff6b6b;
         }
+
         body {
             min-height: 100vh;
+
             background:
                 radial-gradient(
                     circle at 50% 0%,
@@ -29,7 +36,9 @@
                     transparent 35%
                 ),
                 var(--background);
+
             color: var(--text);
+
             font-family:
                 Inter,
                 system-ui,
@@ -38,424 +47,684 @@
                 "Segoe UI",
                 sans-serif;
         }
+
         .background-glow {
             position: fixed;
+
             width: 500px;
             height: 500px;
+
             top: -250px;
             left: 50%;
+
             transform: translateX(-50%);
+
             background: rgba(139, 92, 246, 0.15);
+
             filter: blur(100px);
+
             pointer-events: none;
+
             z-index: -1;
         }
+
         .app {
             width: min(100% - 32px, 900px);
+
             margin: auto;
+
             padding: 32px 0 50px;
         }
+
         .header {
             display: flex;
+
             justify-content: space-between;
             align-items: center;
+
             margin-bottom: 80px;
         }
+
         .logo {
             display: flex;
+
             align-items: center;
+
             gap: 10px;
+
             font-size: 18px;
+
             font-weight: 700;
         }
+
         .logo-icon {
             display: flex;
+
             justify-content: center;
             align-items: center;
+
             width: 38px;
             height: 38px;
+
             background: rgba(139, 92, 246, 0.15);
+
             border: 1px solid rgba(139, 92, 246, 0.25);
+
             border-radius: 12px;
         }
+
         .status {
             display: flex;
+
             align-items: center;
+
             gap: 8px;
+
             color: var(--muted);
+
             font-size: 13px;
         }
+
         .status-dot {
             width: 7px;
             height: 7px;
+
             border-radius: 50%;
+
             background: #4ade80;
         }
+
         .hero {
             text-align: center;
+
             margin-bottom: 50px;
         }
+
         .eyebrow {
             color: var(--accent-light);
+
             font-size: 12px;
+
             font-weight: 700;
+
             letter-spacing: 3px;
+
             margin-bottom: 18px;
         }
+
         .hero h1 {
             font-size: clamp(48px, 8vw, 78px);
+
             line-height: 0.95;
+
             letter-spacing: -4px;
+
             margin-bottom: 25px;
         }
+
         .hero h1 span {
             color: var(--accent-light);
         }
+
         .hero-text {
             max-width: 550px;
+
             margin: auto;
+
             color: var(--muted);
+
             font-size: 16px;
+
             line-height: 1.7;
         }
+
         .workspace {
             display: flex;
+
             flex-direction: column;
+
             gap: 20px;
         }
+
         .card {
             position: relative;
+
             padding: 28px;
+
             background: var(--card);
+
             border: 1px solid var(--card-border);
+
             border-radius: 24px;
+
             backdrop-filter: blur(20px);
         }
+
         .step-number {
             position: absolute;
+
             top: 25px;
             right: 28px;
+
             color: rgba(255, 255, 255, 0.2);
+
             font-size: 13px;
+
             font-weight: 700;
+
             letter-spacing: 1px;
         }
+
         .card-header {
             display: flex;
+
             justify-content: space-between;
             align-items: flex-start;
+
             margin-bottom: 25px;
         }
+
         .card-header h2 {
             font-size: 20px;
+
             margin-bottom: 8px;
         }
+
         .card-header p {
             color: var(--muted);
+
             font-size: 13px;
         }
+
         .card-icon {
             font-size: 24px;
         }
+
         .upload-area {
             display: flex;
+
             flex-direction: column;
+
             justify-content: center;
             align-items: center;
+
             min-height: 220px;
+
             padding: 30px;
+
             border: 1px dashed rgba(255, 255, 255, 0.15);
+
             border-radius: 18px;
+
             cursor: pointer;
+
             transition: 0.25s ease;
+
             text-align: center;
         }
+
         .upload-area:hover {
             border-color: var(--accent);
+
             background: rgba(139, 92, 246, 0.05);
         }
+
         .upload-icon {
             display: flex;
+
             justify-content: center;
             align-items: center;
+
             width: 55px;
             height: 55px;
+
             margin-bottom: 15px;
+
             border-radius: 16px;
+
             background: rgba(139, 92, 246, 0.12);
+
             color: var(--accent-light);
+
             font-size: 28px;
         }
+
         .upload-area h3 {
             font-size: 16px;
+
             margin-bottom: 7px;
         }
+
         .upload-area p {
             color: var(--muted);
+
             font-size: 12px;
+
             margin-bottom: 18px;
         }
+
         .upload-button {
             padding: 9px 16px;
+
             border-radius: 10px;
+
             background: rgba(255, 255, 255, 0.08);
+
             font-size: 12px;
+
             font-weight: 600;
         }
+
         .selected-file {
             display: flex;
+
             align-items: center;
+
             gap: 14px;
+
             padding: 15px;
+
             margin-top: 15px;
+
             border-radius: 14px;
+
             background: rgba(255, 255, 255, 0.05);
         }
+
         .file-icon {
             display: flex;
+
             justify-content: center;
             align-items: center;
+
             width: 42px;
             height: 42px;
+
             border-radius: 12px;
+
             background: rgba(139, 92, 246, 0.12);
         }
+
         .file-info {
             display: flex;
+
             flex-direction: column;
+
             gap: 4px;
+
             flex: 1;
         }
+
         .file-info strong {
             font-size: 13px;
+
             word-break: break-word;
         }
+
         .file-info span {
             color: var(--muted);
+
             font-size: 11px;
         }
+
         .remove-file {
             border: none;
+
             background: transparent;
+
             color: var(--muted);
+
             font-size: 25px;
+
             cursor: pointer;
         }
+
         .remove-file:hover {
             color: var(--danger);
         }
+
         .textarea-wrapper {
             position: relative;
         }
+
         textarea {
             width: 100%;
+
             min-height: 180px;
+
             padding: 18px;
+
             resize: vertical;
+
             border: 1px solid rgba(255, 255, 255, 0.08);
+
             border-radius: 16px;
+
             outline: none;
+
             background: rgba(0, 0, 0, 0.2);
+
             color: white;
+
             font-family: inherit;
+
             font-size: 15px;
+
             line-height: 1.6;
+
             transition: 0.25s ease;
         }
+
         textarea:focus {
             border-color: rgba(139, 92, 246, 0.6);
+
             box-shadow:
                 0 0 0 3px rgba(139, 92, 246, 0.08);
         }
+
         textarea::placeholder {
             color: #626574;
         }
+
         .character-count {
             position: absolute;
+
             bottom: 12px;
             right: 15px;
+
             color: var(--muted);
+
             font-size: 11px;
         }
+
         .generate-button {
             display: flex;
+
             justify-content: center;
             align-items: center;
+
             gap: 10px;
+
             width: 100%;
+
             padding: 17px;
+
             border: none;
+
             border-radius: 16px;
+
             background: var(--accent);
+
             color: white;
+
             font-size: 15px;
+
             font-weight: 700;
+
             cursor: pointer;
+
             transition: 0.25s ease;
         }
+
         .generate-button:hover {
             transform: translateY(-2px);
+
             background: #7c3aed;
+
             box-shadow:
                 0 12px 30px rgba(139, 92, 246, 0.25);
         }
+
         .generate-button:active {
             transform: translateY(0);
         }
+
         .generate-button.loading {
             opacity: 0.7;
+
             pointer-events: none;
         }
+
         .audio-container {
             min-height: 130px;
+
             display: flex;
+
             justify-content: center;
             align-items: center;
+
             border-radius: 16px;
+
             background: rgba(0, 0, 0, 0.18);
         }
+
         .audio-placeholder {
             text-align: center;
+
             color: var(--muted);
         }
+
         .audio-placeholder-icon {
             font-size: 30px;
+
             margin-bottom: 8px;
+
             opacity: 0.6;
         }
+
         .audio-placeholder p {
             font-size: 12px;
         }
+
         #audioPlayer {
             width: 90%;
         }
+
         footer {
             display: flex;
+
             justify-content: center;
             align-items: center;
+
             gap: 8px;
+
             margin-top: 35px;
+
             color: var(--muted);
+
             font-size: 11px;
+
             text-align: center;
         }
+
         footer p {
             color: white;
+
             font-weight: 600;
         }
+
         @media (max-width: 600px) {
+
             .app {
                 width: min(100% - 22px, 900px);
+
                 padding-top: 20px;
             }
+
             .header {
                 margin-bottom: 55px;
             }
+
             .status {
                 display: none;
             }
+
             .hero h1 {
                 font-size: 50px;
+
                 letter-spacing: -3px;
             }
+
             .hero-text {
                 font-size: 14px;
             }
+
             .card {
                 padding: 22px;
+
                 border-radius: 20px;
             }
+
             .card-header h2 {
                 font-size: 18px;
             }
+
             footer {
                 flex-direction: column;
             }
         }
+
     </style>
 </head>
+
 <body>
+
 <div class="background-glow"></div>
+
 <main class="app">
+
     <header class="header">
+
         <div class="logo">
-            <span class="logo-icon">🎙️</span>
-            <span>Voice Clone</span>
+
+            <span class="logo-icon">
+                🎙️
+            </span>
+
+            <span>
+                Voice Clone
+            </span>
+
         </div>
+
         <div class="status">
+
             <span class="status-dot"></span>
+
             AI Voice Studio
+
         </div>
+
     </header>
+
+
     <section class="hero">
+
         <p class="eyebrow">
             AI VOICE STUDIO
         </p>
+
         <h1>
             Your voice.<br>
             <span>Reimagined.</span>
         </h1>
+
         <p class="hero-text">
             Upload an authorized voice sample, write your text,
             and generate natural speech.
         </p>
+
     </section>
+
+
     <section class="workspace">
+
+
+        <!-- ================================= -->
+        <!-- STEP 01 -->
+        <!-- ================================= -->
+
         <div class="card">
+
             <div class="step-number">
                 01
             </div>
+
             <div class="card-header">
+
                 <div>
-                    <h2>Add your voice</h2>
+
+                    <h2>
+                        Add your voice
+                    </h2>
+
                     <p>
                         Upload an audio sample you have permission to use.
                     </p>
+
                 </div>
+
                 <span class="card-icon">
                     🎙️
                 </span>
+
             </div>
+
+
             <label
                 for="voiceFile"
                 class="upload-area"
                 id="uploadArea"
             >
+
                 <div class="upload-icon">
                     ↑
                 </div>
+
                 <h3>
                     Choose an audio file
                 </h3>
+
                 <p>
                     MP3, WAV, M4A or other supported audio
                 </p>
+
                 <span class="upload-button">
                     Browse files
                 </span>
+
                 <input
                     type="file"
                     id="voiceFile"
                     accept="audio/*"
                     hidden
                 >
+
             </label>
+
+
             <div
                 class="selected-file"
                 id="selectedFile"
                 hidden
             >
+
                 <div class="file-icon">
                     🎵
                 </div>
+
                 <div class="file-info">
+
                     <strong id="fileName">
                         Audio file
                     </strong>
+
                     <span id="fileSize">
                         0 MB
                     </span>
+
                 </div>
+
                 <button
                     type="button"
                     class="remove-file"
@@ -463,153 +732,269 @@
                 >
                     ×
                 </button>
+
             </div>
+
         </div>
+
+
+        <!-- ================================= -->
+        <!-- STEP 02 -->
+        <!-- ================================= -->
+
         <div class="card">
+
             <div class="step-number">
                 02
             </div>
+
             <div class="card-header">
+
                 <div>
-                    <h2>Write your text</h2>
+
+                    <h2>
+                        Write your text
+                    </h2>
+
                     <p>
                         Enter the words you want your voice to say.
                     </p>
+
                 </div>
+
                 <span class="card-icon">
                     ✍️
                 </span>
+
             </div>
+
+
             <div class="textarea-wrapper">
+
                 <textarea
                     id="textInput"
                     placeholder="Type something here..."
                     maxlength="500"
                 ></textarea>
+
                 <div class="character-count">
-                    <span id="characterCount">0</span>
+
+                    <span id="characterCount">
+                        0
+                    </span>
+
                     / 500
+
                 </div>
+
             </div>
+
         </div>
+
+
+        <!-- ================================= -->
+        <!-- GENERATE -->
+        <!-- ================================= -->
+
         <button
             type="button"
             id="generateButton"
             class="generate-button"
         >
+
             <span class="button-icon">
                 ✨
             </span>
+
             <span>
                 Generate Voice
             </span>
+
         </button>
+
+
+        <!-- ================================= -->
+        <!-- STEP 03 -->
+        <!-- ================================= -->
+
         <div
             class="card result-card"
             id="resultCard"
         >
+
             <div class="step-number">
                 03
             </div>
+
             <div class="card-header">
+
                 <div>
-                    <h2>Your generated voice</h2>
+
+                    <h2>
+                        Your generated voice
+                    </h2>
+
                     <p>
                         Your generated audio will appear here.
                     </p>
+
                 </div>
+
                 <span class="card-icon">
                     🔊
                 </span>
+
             </div>
+
+
             <div class="audio-container">
+
                 <div
                     class="audio-placeholder"
                     id="audioPlaceholder"
                 >
+
                     <div class="audio-placeholder-icon">
                         🔊
                     </div>
+
                     <p>
                         No generated audio yet
                     </p>
+
                 </div>
+
+
                 <audio
                     id="audioPlayer"
                     controls
                     hidden
                 ></audio>
+
             </div>
+
         </div>
+
     </section>
+
+
     <footer>
+
         <p>
             Voice Clone AI
         </p>
+
         <span>
             Use only voices you own or have permission to use.
         </span>
+
     </footer>
+
 </main>
+
+
 <script>
-const API_URL = "https://voice-clone-ai-gvoo.onrender.com";
-
-// ===============================
-// HTML Elements
-// ===============================
-
-const voiceFile = document.getElementById("voiceFile");
-const uploadArea = document.getElementById("uploadArea");
-const selectedFile = document.getElementById("selectedFile");
-const fileName = document.getElementById("fileName");
-const fileSize = document.getElementById("fileSize");
-const removeFile = document.getElementById("removeFile");
-
-const textInput = document.getElementById("textInput");
-const characterCount = document.getElementById("characterCount");
-
-const generateButton = document.getElementById("generateButton");
-
-const audioPlayer = document.getElementById("audioPlayer");
-const audioPlaceholder = document.getElementById("audioPlaceholder");
 
 
-// ===============================
-// File Selection
-// ===============================
+// =====================================================
+// BACKEND
+// =====================================================
 
-voiceFile.addEventListener("change", function () {
+const API_URL =
+    "https://voice-clone-ai-cxic.onrender.com";
 
-    const file = voiceFile.files[0];
 
-    if (!file) {
-        return;
+// =====================================================
+// HTML ELEMENTS
+// =====================================================
+
+const voiceFile =
+    document.getElementById("voiceFile");
+
+const uploadArea =
+    document.getElementById("uploadArea");
+
+const selectedFile =
+    document.getElementById("selectedFile");
+
+const fileName =
+    document.getElementById("fileName");
+
+const fileSize =
+    document.getElementById("fileSize");
+
+const removeFile =
+    document.getElementById("removeFile");
+
+const textInput =
+    document.getElementById("textInput");
+
+const characterCount =
+    document.getElementById("characterCount");
+
+const generateButton =
+    document.getElementById("generateButton");
+
+const audioPlayer =
+    document.getElementById("audioPlayer");
+
+const audioPlaceholder =
+    document.getElementById("audioPlaceholder");
+
+
+// =====================================================
+// FILE SELECTION
+// =====================================================
+
+voiceFile.addEventListener(
+    "change",
+    function () {
+
+        const file =
+            voiceFile.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        fileName.textContent =
+            file.name;
+
+        fileSize.textContent =
+            formatFileSize(file.size);
+
+        selectedFile.hidden =
+            false;
+
+        uploadArea.style.display =
+            "none";
     }
-
-    fileName.textContent = file.name;
-    fileSize.textContent = formatFileSize(file.size);
-
-    selectedFile.hidden = false;
-    uploadArea.style.display = "none";
-});
+);
 
 
-// ===============================
-// Remove File
-// ===============================
+// =====================================================
+// REMOVE FILE
+// =====================================================
 
-removeFile.addEventListener("click", function () {
+removeFile.addEventListener(
+    "click",
+    function () {
 
-    voiceFile.value = "";
+        voiceFile.value =
+            "";
 
-    selectedFile.hidden = true;
-    uploadArea.style.display = "flex";
-});
+        selectedFile.hidden =
+            true;
+
+        uploadArea.style.display =
+            "flex";
+    }
+);
 
 
-// ===============================
-// File Size
-// ===============================
+// =====================================================
+// FILE SIZE
+// =====================================================
 
 function formatFileSize(bytes) {
 
@@ -617,48 +1002,73 @@ function formatFileSize(bytes) {
         return "0 Bytes";
     }
 
-    const units = ["Bytes", "KB", "MB", "GB"];
+    const units = [
+        "Bytes",
+        "KB",
+        "MB",
+        "GB"
+    ];
 
-    const index = Math.floor(
-        Math.log(bytes) / Math.log(1024)
-    );
+    const index =
+        Math.floor(
+            Math.log(bytes) /
+            Math.log(1024)
+        );
 
     return (
         parseFloat(
-            (bytes / Math.pow(1024, index)).toFixed(2)
-        ) +
+            (
+                bytes /
+                Math.pow(
+                    1024,
+                    index
+                )
+            ).toFixed(2)
+        )
+        +
         " " +
         units[index]
     );
 }
 
 
-// ===============================
-// Character Counter
-// ===============================
+// =====================================================
+// CHARACTER COUNTER
+// =====================================================
 
-textInput.addEventListener("input", function () {
+textInput.addEventListener(
+    "input",
+    function () {
 
-    characterCount.textContent =
-        textInput.value.length;
-});
+        characterCount.textContent =
+            textInput.value.length;
+    }
+);
 
 
-// ===============================
-// Generate Voice
-// ===============================
+// =====================================================
+// GENERATE VOICE
+// =====================================================
 
 generateButton.addEventListener(
     "click",
     async function () {
 
-        const file = voiceFile.files[0];
-        const text = textInput.value.trim();
+
+        // ==========================================
+        // GET DATA
+        // ==========================================
+
+        const file =
+            voiceFile.files[0];
+
+        const text =
+            textInput.value.trim();
 
 
-        // ---------------------------
-        // Check voice
-        // ---------------------------
+        // ==========================================
+        // CHECK FILE
+        // ==========================================
 
         if (!file) {
 
@@ -670,9 +1080,9 @@ generateButton.addEventListener(
         }
 
 
-        // ---------------------------
-        // Check text
-        // ---------------------------
+        // ==========================================
+        // CHECK TEXT
+        // ==========================================
 
         if (!text) {
 
@@ -686,42 +1096,58 @@ generateButton.addEventListener(
         }
 
 
-        // ---------------------------
-        // Loading
-        // ---------------------------
+        // ==========================================
+        // LOADING
+        // ==========================================
 
-        generateButton.classList.add("loading");
+        generateButton.classList.add(
+            "loading"
+        );
 
         generateButton.innerHTML = `
             <span>⏳</span>
-            Generating Voice...
+            <span>Generating Voice...</span>
         `;
 
 
         try {
 
-            const formData = new FormData();
 
-            formData.append("file", file);
-            formData.append("text", text);
+            // ======================================
+            // FORM DATA
+            // ======================================
 
+            const formData =
+                new FormData();
 
-            // -----------------------
-            // Send to Backend
-            // -----------------------
+            formData.append(
+                "file",
+                file
+            );
 
-            const response = await fetch(
-                `${API_URL}/generate`,
-                {
-                    method: "POST",
-                    body: formData
-                }
+            formData.append(
+                "text",
+                text
             );
 
 
-            // -----------------------
-            // Handle errors
-            // -----------------------
+            // ======================================
+            // SEND TO BACKEND
+            // ======================================
+
+            const response =
+                await fetch(
+                    `${API_URL}/generate`,
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+
+            // ======================================
+            // ERROR RESPONSE
+            // ======================================
 
             if (!response.ok) {
 
@@ -733,44 +1159,86 @@ generateButton.addEventListener(
                     const errorData =
                         await response.json();
 
-                    if (errorData.detail) {
+                    if (
+                        errorData &&
+                        errorData.detail
+                    ) {
+
                         errorMessage =
                             errorData.detail;
                     }
 
-                } catch (e) {}
+                } catch (error) {
 
-                throw new Error(errorMessage);
+                    console.error(
+                        "Could not read error response:",
+                        error
+                    );
+                }
+
+                throw new Error(
+                    errorMessage
+                );
             }
 
 
-            // -----------------------
-            // Receive audio
-            // -----------------------
+            // ======================================
+            // GET AUDIO
+            // ======================================
 
             const audioBlob =
                 await response.blob();
 
+
+            if (
+                !audioBlob ||
+                audioBlob.size === 0
+            ) {
+
+                throw new Error(
+                    "The server returned an empty audio file."
+                );
+            }
+
+
+            // ======================================
+            // CREATE AUDIO URL
+            // ======================================
+
             const audioURL =
-                URL.createObjectURL(audioBlob);
+                URL.createObjectURL(
+                    audioBlob
+                );
 
 
-            // -----------------------
-            // Show audio player
-            // -----------------------
+            // ======================================
+            // SHOW AUDIO
+            // ======================================
 
-            audioPlayer.src = audioURL;
+            audioPlayer.src =
+                audioURL;
 
-            audioPlayer.hidden = false;
+            audioPlayer.hidden =
+                false;
 
-            audioPlaceholder.style.display = "none";
+            audioPlaceholder.style.display =
+                "none";
 
 
-            // -----------------------
-            // Play
-            // -----------------------
+            // ======================================
+            // PLAY AUDIO
+            // ======================================
 
-            await audioPlayer.play();
+            try {
+
+                await audioPlayer.play();
+
+            } catch (playError) {
+
+                console.log(
+                    "Autoplay was blocked. Use the play button."
+                );
+            }
 
 
         } catch (error) {
@@ -781,11 +1249,20 @@ generateButton.addEventListener(
             );
 
             alert(
-                "❌ " + error.message
+                "❌ " +
+                (
+                    error.message ||
+                    "Voice generation failed."
+                )
             );
 
 
         } finally {
+
+
+            // ======================================
+            // RESTORE BUTTON
+            // ======================================
 
             generateButton.classList.remove(
                 "loading"
@@ -796,8 +1273,12 @@ generateButton.addEventListener(
                 <span>Generate Voice</span>
             `;
         }
+
     }
 );
+
 </script>
+
 </body>
 </html>
+```
