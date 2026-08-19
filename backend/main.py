@@ -2,9 +2,13 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
+
+from gradio_client import Client, handle_file
+
 from io import BytesIO
 import os
-import httpx
+import shutil
+import tempfile
 
 
 # ========================================
@@ -13,9 +17,10 @@ import httpx
 
 load_dotenv()
 
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+HF_TOKEN = os.getenv("HF_TOKEN")
 
-ELEVENLABS_BASE_URL = "https://api.elevenlabs.io/v1"
+# Hugging Face XTTS Space
+HF_SPACE = "coqui/xtts"
 
 
 # ========================================
@@ -48,7 +53,7 @@ app.add_middleware(
 def home():
     return {
         "status": "online",
-        "message": "Voice Clone AI backend is running"
+        "message": "XTTS Voice Clone backend is running"
     }
 
 
@@ -63,18 +68,7 @@ async def generate_voice(
 ):
 
     # ====================================
-    # API KEY
-    # ====================================
-
-    if not ELEVENLABS_API_KEY:
-        raise HTTPException(
-            status_code=500,
-            detail="ElevenLabs API key is not configured."
-        )
-
-
-    # ====================================
-    # TEXT
+    # TEXT CHECK
     # ====================================
 
     text = text.strip()
@@ -85,29 +79,18 @@ async def generate_voice(
             detail="Please enter some text."
         )
 
-
-    # ====================================
-    # FILE INFO
-    # ====================================
-
-    print("================================")
-    print("FILE NAME:", file.filename)
-    print("CONTENT TYPE:", file.content_type)
-    print("================================")
+    if len(text) > 500:
+        raise HTTPException(
+            status_code=400,
+            detail="Text is too long. Please use less than 500 characters."
+        )
 
 
     # ====================================
-    # READ FILE
+    # FILE CHECK
     # ====================================
 
     audio_data = await file.read()
-
-    print(
-        "AUDIO SIZE:",
-        len(audio_data),
-        "bytes"
-    )
-
 
     if not audio_data:
         raise HTTPException(
@@ -115,225 +98,213 @@ async def generate_voice(
             detail="The uploaded audio file is empty."
         )
 
-
-    # ====================================
-    # BASIC FILE SIGNATURE CHECK
-    # ====================================
-
-    # We don't reject the file based only
-    # on extension or browser MIME type.
-
-    file_header = audio_data[:16]
-
-    print(
-        "FILE HEADER:",
-        file_header
-    )
+    print("================================")
+    print("FILE NAME:", file.filename)
+    print("CONTENT TYPE:", file.content_type)
+    print("AUDIO SIZE:", len(audio_data))
+    print("================================")
 
 
     # ====================================
-    # SEND AUDIO TO ELEVENLABS
+    # SAVE TEMP AUDIO FILE
     # ====================================
 
-    headers = {
-        "xi-api-key": ELEVENLABS_API_KEY
-    }
-
-    clone_data = {
-        "name": "My Voice Clone"
-    }
-
-    files = {
-        "files": (
-            file.filename or "voice_audio",
-            audio_data,
-            file.content_type or "application/octet-stream"
-        )
-    }
-
+    temp_path = None
 
     try:
 
-        async with httpx.AsyncClient(
-            timeout=120
-        ) as client:
+        suffix = ".wav"
 
-            clone_response = await client.post(
-                f"{ELEVENLABS_BASE_URL}/voices/add",
-                headers=headers,
-                data=clone_data,
-                files=files
+        if file.filename:
+            original_ext = os.path.splitext(
+                file.filename
+            )[1]
+
+            if original_ext:
+                suffix = original_ext
+
+
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=suffix
+        ) as temp_file:
+
+            temp_file.write(audio_data)
+
+            temp_path = temp_file.name
+
+
+        print("TEMP AUDIO:", temp_path)
+
+
+        # ====================================
+        # CONNECT TO HUGGING FACE
+        # ====================================
+
+        print("Connecting to Hugging Face XTTS...")
+
+        if HF_TOKEN:
+
+            client = Client(
+                HF_SPACE,
+                hf_token=HF_TOKEN
             )
 
-    except Exception as error:
+        else:
 
-        print(
-            "CLONE CONNECTION ERROR:",
-            error
+            client = Client(
+                HF_SPACE
+            )
+
+
+        print("Connected to:", HF_SPACE)
+
+
+        # ====================================
+        # SEND TO XTTS
+        # ====================================
+
+        print("Sending voice + text to XTTS...")
+
+
+        result = client.predict(
+            text,
+            "ar",
+            handle_file(temp_path),
+            None,
+            False,
+            False,
+            False,
+            True,
+            api_name="/predict"
         )
 
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Could not connect to "
-                "the voice cloning service."
-            )
-        )
+
+        print("XTTS RESULT:", result)
 
 
-    # ====================================
-    # ELEVENLABS RESPONSE
-    # ====================================
+        # ====================================
+        # GET GENERATED AUDIO
+        # ====================================
 
-    print(
-        "CLONE STATUS:",
-        clone_response.status_code
-    )
-
-    print(
-        "CLONE RESPONSE:",
-        clone_response.text
-    )
+        output_file = None
 
 
-    if clone_response.status_code != 200:
+        if isinstance(result, tuple):
 
-        try:
+            for item in result:
 
-            error_data = clone_response.json()
+                if isinstance(item, str):
 
-            detail = error_data.get(
-                "detail",
-                "Voice cloning failed."
-            )
+                    if (
+                        item.endswith(".wav")
+                        or item.endswith(".mp3")
+                        or item.endswith(".flac")
+                    ):
+                        output_file = item
+                        break
 
-            if isinstance(detail, dict):
 
-                detail = detail.get(
-                    "message",
-                    "Voice cloning failed."
+        elif isinstance(result, str):
+
+            output_file = result
+
+
+        # ====================================
+        # CHECK RESULT
+        # ====================================
+
+        if not output_file:
+
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "XTTS did not return an audio file."
                 )
-
-        except Exception:
-
-            detail = (
-                "Voice cloning failed. "
-                "Check Render logs."
             )
 
 
-        raise HTTPException(
-            status_code=502,
-            detail=str(detail)
-        )
+        if not os.path.exists(output_file):
 
-
-    # ====================================
-    # VOICE ID
-    # ====================================
-
-    clone_result = clone_response.json()
-
-    voice_id = clone_result.get(
-        "voice_id"
-    )
-
-
-    if not voice_id:
-
-        raise HTTPException(
-            status_code=500,
-            detail="Voice ID was not returned."
-        )
-
-
-    print(
-        "VOICE ID:",
-        voice_id
-    )
-
-
-    # ====================================
-    # TEXT TO SPEECH
-    # ====================================
-
-    tts_headers = {
-        "xi-api-key": ELEVENLABS_API_KEY,
-        "Content-Type": "application/json"
-    }
-
-    tts_data = {
-        "text": text,
-        "model_id": "eleven_multilingual_v2"
-    }
-
-
-    try:
-
-        async with httpx.AsyncClient(
-            timeout=120
-        ) as client:
-
-            audio_response = await client.post(
-                f"{ELEVENLABS_BASE_URL}/text-to-speech/{voice_id}",
-                params={
-                    "output_format": "mp3_44100_128"
-                },
-                headers=tts_headers,
-                json=tts_data
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "Generated audio file could not "
+                    "be found."
+                )
             )
+
+
+        # ====================================
+        # READ GENERATED AUDIO
+        # ====================================
+
+        with open(
+            output_file,
+            "rb"
+        ) as audio_file:
+
+            generated_audio = audio_file.read()
+
+
+        if not generated_audio:
+
+            raise HTTPException(
+                status_code=502,
+                detail="Generated audio is empty."
+            )
+
+
+        print(
+            "GENERATED AUDIO SIZE:",
+            len(generated_audio)
+        )
+
+
+        # ====================================
+        # RETURN AUDIO
+        # ====================================
+
+        return StreamingResponse(
+            BytesIO(generated_audio),
+            media_type="audio/wav",
+            headers={
+                "Content-Disposition":
+                'inline; filename="voice-clone.wav"'
+            }
+        )
+
+
+    except HTTPException:
+        raise
+
 
     except Exception as error:
 
-        print(
-            "TTS CONNECTION ERROR:",
-            error
-        )
+        print("================================")
+        print("XTTS ERROR:")
+        print(error)
+        print("================================")
 
         raise HTTPException(
             status_code=502,
             detail=(
-                "Could not connect to "
-                "the speech generation service."
+                "Voice generation failed. "
+                "Please try again."
             )
         )
 
 
-    # ====================================
-    # TTS RESPONSE
-    # ====================================
+    finally:
 
-    print(
-        "TTS STATUS:",
-        audio_response.status_code
-    )
+        # ====================================
+        # DELETE TEMP FILE
+        # ====================================
 
+        if temp_path and os.path.exists(temp_path):
 
-    if audio_response.status_code != 200:
+            try:
+                os.remove(temp_path)
 
-        print(
-            "TTS RESPONSE:",
-            audio_response.text
-        )
-
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "Speech generation failed. "
-                "Check Render logs."
-            )
-        )
-
-
-    # ====================================
-    # RETURN MP3
-    # ====================================
-
-    return StreamingResponse(
-        BytesIO(audio_response.content),
-        media_type="audio/mpeg",
-        headers={
-            "Content-Disposition":
-            'inline; filename="voice-clone.mp3"'
-        }
-    )
+            except Exception:
+                pass
