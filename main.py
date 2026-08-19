@@ -1,498 +1,290 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-
 from gradio_client import Client, handle_file
-
 from io import BytesIO
 import os
 import tempfile
+import traceback
 
 
-# ========================================
-# Hugging Face Space
-# ========================================
+# =========================================================
+# APP
+# =========================================================
 
-HF_SPACE = "applore/xtts-voice-cloning-demo"
+app = FastAPI(title="Voice Clone AI")
 
-HF_TOKEN = os.getenv("HF_TOKEN")
-
-
-# ========================================
-# FastAPI
-# ========================================
-
-app = FastAPI()
-
-
-# ========================================
-# CORS
-# ========================================
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://hedayaodat20-cell.github.io"
-    ],
-    allow_credentials=False,
+    allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ========================================
-# Home
-# ========================================
+# =========================================================
+# HUGGING FACE SPACE
+# =========================================================
+
+SPACE_ID = "applore/xtts-voice-cloning-demo"
+
+client = None
+
+
+def get_client():
+    global client
+
+    if client is None:
+        print("Connecting to Hugging Face XTTS Space...")
+
+        client = Client(SPACE_ID)
+
+        print("Connected to Hugging Face XTTS Space.")
+
+    return client
+
+
+# =========================================================
+# HOME
+# =========================================================
 
 @app.get("/")
-def home():
-
+async def home():
     return {
         "status": "online",
-        "message": "XTTS Voice Clone backend is running"
+        "service": "Voice Clone AI",
+        "xtts_space": SPACE_ID
     }
 
 
-# ========================================
-# Find audio path
-# ========================================
+# =========================================================
+# HEALTH
+# =========================================================
 
-def find_audio(result):
-
-    print("SEARCHING RESULT:", repr(result))
-    print("RESULT TYPE:", type(result))
-
-    # Direct string
-    if isinstance(result, str):
-
-        if os.path.isfile(result):
-            return result
-
-        return None
-
-    # List / tuple
-    if isinstance(result, (list, tuple)):
-
-        for item in result:
-
-            found = find_audio(item)
-
-            if found:
-                return found
-
-        return None
-
-    # Dictionary
-    if isinstance(result, dict):
-
-        for value in result.values():
-
-            found = find_audio(value)
-
-            if found:
-                return found
-
-        return None
-
-    # Gradio FileData-like object
-    if hasattr(result, "path"):
-
-        path = getattr(result, "path", None)
-
-        if path and os.path.isfile(path):
-            return path
-
-    return None
+@app.get("/health")
+async def health():
+    return {
+        "status": "ok"
+    }
 
 
-# ========================================
-# Generate
-# ========================================
+# =========================================================
+# GENERATE
+# =========================================================
 
 @app.post("/generate")
-async def generate_voice(
+async def generate(
     file: UploadFile = File(...),
     text: str = Form(...)
 ):
 
-    text = text.strip()
+    print("\n========================================")
+    print("XTTS REQUEST")
+    print("========================================")
 
-    if not text:
+    print("Filename:", file.filename)
+    print("Content type:", file.content_type)
+    print("Text:", text)
 
+    if not text.strip():
         raise HTTPException(
             status_code=400,
-            detail="Please enter some text."
+            detail="Text is empty."
         )
-
-
-    audio_data = await file.read()
-
-
-    if not audio_data:
-
-        raise HTTPException(
-            status_code=400,
-            detail="Uploaded audio file is empty."
-        )
-
-
-    print("================================")
-    print("INPUT FILE:", file.filename)
-    print("CONTENT TYPE:", file.content_type)
-    print("AUDIO SIZE:", len(audio_data))
-    print("================================")
-
-
-    temp_path = None
-
 
     try:
 
-        # ====================================
-        # Save uploaded audio
-        # ====================================
+        # =================================================
+        # SAVE UPLOADED VOICE
+        # =================================================
 
-        extension = ".wav"
+        suffix = os.path.splitext(
+            file.filename or ".wav"
+        )[1]
 
-        if file.filename:
-
-            ext = os.path.splitext(
-                file.filename
-            )[1]
-
-            if ext:
-                extension = ext
-
+        if not suffix:
+            suffix = ".wav"
 
         with tempfile.NamedTemporaryFile(
             delete=False,
-            suffix=extension
-        ) as temp:
+            suffix=suffix
+        ) as temp_voice:
 
-            temp.write(audio_data)
+            voice_path = temp_voice.name
 
-            temp_path = temp.name
+            content = await file.read()
+
+            temp_voice.write(content)
+
+        print("Voice saved to:", voice_path)
+        print("Voice size:", os.path.getsize(voice_path))
 
 
-        print(
-            "TEMP FILE:",
-            temp_path
+        # =================================================
+        # CONNECT TO SPACE
+        # =================================================
+
+        hf_client = get_client()
+
+
+        # =================================================
+        # CALL XTTS
+        #
+        # The Space's predict function is:
+        #
+        # predict(text, speaker_wav, language)
+        #
+        # Arabic = ar
+        # =================================================
+
+        print("Calling XTTS...")
+
+        result = hf_client.predict(
+            text=text,
+            speaker_wav=handle_file(voice_path),
+            language="ar",
+            api_name="/predict"
         )
 
-
-        # ====================================
-        # Connect to Hugging Face
-        # ====================================
-
-        print(
-            "Connecting to:",
-            HF_SPACE
-        )
+        print("========================================")
+        print("XTTS RESULT:")
+        print(repr(result))
+        print("========================================")
 
 
-        if HF_TOKEN:
+        # =================================================
+        # FIND AUDIO RESULT
+        # =================================================
 
-            client = Client(
-                HF_SPACE,
-                hf_token=HF_TOKEN
-            )
+        audio_path = None
 
-        else:
+        if isinstance(result, str):
 
-            client = Client(
-                HF_SPACE
-            )
+            audio_path = result
 
+        elif isinstance(result, (list, tuple)):
 
-        print(
-            "Connected successfully."
-        )
+            for item in result:
 
+                if isinstance(item, str):
 
-        # ====================================
-        # Discover API
-        # ====================================
+                    lower = item.lower()
 
-        api_info = client.view_api(
-            all_endpoints=True,
-            print_info=True,
-            return_format="dict"
-        )
+                    if (
+                        lower.endswith(".wav")
+                        or lower.endswith(".mp3")
+                        or lower.endswith(".flac")
+                        or lower.endswith(".ogg")
+                    ):
+                        audio_path = item
+                        break
 
 
-        print(
-            "================================"
-        )
+                elif isinstance(item, dict):
 
-        print(
-            "HF API INFO:"
-        )
+                    possible = (
+                        item.get("path")
+                        or item.get("url")
+                        or item.get("name")
+                    )
 
-        print(
-            api_info
-        )
-
-        print(
-            "================================"
-        )
+                    if possible:
+                        audio_path = possible
+                        break
 
 
-        # ====================================
-        # Find endpoint
-        # ====================================
+        elif isinstance(result, dict):
 
-        endpoint = None
-
-
-        named_endpoints = api_info.get(
-            "named_endpoints",
-            {}
-        )
-
-
-        if "/predict" in named_endpoints:
-
-            endpoint = "/predict"
-
-
-        elif named_endpoints:
-
-            endpoint = list(
-                named_endpoints.keys()
-            )[0]
-
-
-        # ====================================
-        # If no named endpoint
-        # ====================================
-
-        if not endpoint:
-
-            unnamed = api_info.get(
-                "unnamed_endpoints",
-                {}
+            audio_path = (
+                result.get("path")
+                or result.get("url")
+                or result.get("name")
             )
 
 
-            if unnamed:
+        # =================================================
+        # NO AUDIO
+        # =================================================
 
-                endpoint_index = list(
-                    unnamed.keys()
-                )[0]
+        if not audio_path:
 
-                print(
-                    "Using unnamed endpoint:",
-                    endpoint_index
-                )
-
-
-                result = client.predict(
-
-                    text,
-
-                    handle_file(
-                        temp_path
-                    ),
-
-                    "ar",
-
-                    fn_index=endpoint_index
-
-                )
-
-            else:
-
-                raise HTTPException(
-                    status_code=502,
-                    detail="No XTTS API endpoint was found."
-                )
-
-
-        else:
-
-            print(
-                "Using endpoint:",
-                endpoint
+            raise RuntimeError(
+                "XTTS did not return an audio file. "
+                f"Raw result: {repr(result)}"
             )
 
 
-            # ====================================
-            # Call XTTS
-            # ====================================
+        print("Audio path:", audio_path)
 
-            result = client.predict(
 
-                text,
+        # =================================================
+        # READ AUDIO
+        # =================================================
 
-                handle_file(
-                    temp_path
-                ),
+        if not os.path.exists(audio_path):
 
-                "ar",
-
-                api_name=endpoint
-
+            raise RuntimeError(
+                f"XTTS returned a path that does not exist: "
+                f"{audio_path}"
             )
 
 
-        # ====================================
-        # Print result
-        # ====================================
+        with open(audio_path, "rb") as audio_file:
 
-        print(
-            "================================"
-        )
-
-        print(
-            "XTTS RESULT:"
-        )
-
-        print(
-            repr(result)
-        )
-
-        print(
-            "RESULT TYPE:",
-            type(result)
-        )
-
-        print(
-            "================================"
-        )
+            audio_data = audio_file.read()
 
 
-        # ====================================
-        # Find output audio
-        # ====================================
+        if not audio_data:
 
-        output_path = find_audio(
-            result
-        )
-
-
-        if not output_path:
-
-            raise HTTPException(
-
-                status_code=502,
-
-                detail=(
-                    "XTTS did not return an audio file. "
-                    "Check Render logs for XTTS RESULT."
-                )
-
+            raise RuntimeError(
+                "XTTS returned an empty audio file."
             )
 
 
         print(
-            "OUTPUT AUDIO:",
-            output_path
+            "Audio generated successfully:",
+            len(audio_data),
+            "bytes"
         )
 
 
-        # ====================================
-        # Read generated audio
-        # ====================================
-
-        with open(
-            output_path,
-            "rb"
-        ) as audio:
-
-            generated_audio = audio.read()
-
-
-        if not generated_audio:
-
-            raise HTTPException(
-
-                status_code=502,
-
-                detail="Generated audio file is empty."
-
-            )
-
-
-        print(
-            "GENERATED AUDIO SIZE:",
-            len(generated_audio)
-        )
-
-
-        # ====================================
-        # Return audio
-        # ====================================
+        # =================================================
+        # RETURN WAV
+        # =================================================
 
         return StreamingResponse(
-
-            BytesIO(
-                generated_audio
-            ),
-
+            BytesIO(audio_data),
             media_type="audio/wav",
-
             headers={
                 "Content-Disposition":
-                'inline; filename="voice-clone.wav"'
+                    'inline; filename="generated_voice.wav"'
             }
-
         )
 
 
-    except HTTPException:
+    except Exception as e:
 
-        raise
+        print("\n========================================")
+        print("XTTS ERROR")
+        print("========================================")
 
-
-    except Exception as error:
-
-        print(
-            "================================"
-        )
-
-        print(
-            "XTTS ERROR:"
-        )
-
-        print(
-            repr(error)
-        )
-
-        print(
-            "================================"
-        )
-
+        traceback.print_exc()
 
         raise HTTPException(
-
-            status_code=502,
-
-            detail=(
-                "XTTS generation failed: "
-                + str(error)
-            )
-
+            status_code=500,
+            detail=str(e)
         )
 
 
     finally:
 
-        # ====================================
-        # Delete temporary input
-        # ====================================
+        try:
 
-        if temp_path:
+            if "voice_path" in locals():
+                if os.path.exists(voice_path):
+                    os.remove(voice_path)
 
-            try:
-
-                if os.path.exists(
-                    temp_path
-                ):
-
-                    os.remove(
-                        temp_path
-                    )
-
-            except Exception:
-
-                pass
+        except Exception:
+            pass
