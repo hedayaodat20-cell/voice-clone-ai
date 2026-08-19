@@ -895,18 +895,9 @@
 
 <script>
 
-
-// =====================================================
-// BACKEND
-// =====================================================
-
 const API_URL =
     "https://voice-clone-ai-cxic.onrender.com";
 
-
-// =====================================================
-// HTML ELEMENTS
-// =====================================================
 
 const voiceFile =
     document.getElementById("voiceFile");
@@ -942,9 +933,9 @@ const audioPlaceholder =
     document.getElementById("audioPlaceholder");
 
 
-// =====================================================
-// FILE SELECTION
-// =====================================================
+/* =====================================================
+   FILE
+===================================================== */
 
 voiceFile.addEventListener(
     "change",
@@ -972,16 +963,15 @@ voiceFile.addEventListener(
 );
 
 
-// =====================================================
-// REMOVE FILE
-// =====================================================
+/* =====================================================
+   REMOVE FILE
+===================================================== */
 
 removeFile.addEventListener(
     "click",
     function () {
 
-        voiceFile.value =
-            "";
+        voiceFile.value = "";
 
         selectedFile.hidden =
             true;
@@ -992,13 +982,13 @@ removeFile.addEventListener(
 );
 
 
-// =====================================================
-// FILE SIZE
-// =====================================================
+/* =====================================================
+   FILE SIZE
+===================================================== */
 
 function formatFileSize(bytes) {
 
-    if (bytes === 0) {
+    if (!bytes) {
         return "0 Bytes";
     }
 
@@ -1032,9 +1022,9 @@ function formatFileSize(bytes) {
 }
 
 
-// =====================================================
-// CHARACTER COUNTER
-// =====================================================
+/* =====================================================
+   CHARACTER COUNT
+===================================================== */
 
 textInput.addEventListener(
     "input",
@@ -1046,18 +1036,13 @@ textInput.addEventListener(
 );
 
 
-// =====================================================
-// GENERATE VOICE
-// =====================================================
+/* =====================================================
+   GENERATE
+===================================================== */
 
 generateButton.addEventListener(
     "click",
     async function () {
-
-
-        // ==========================================
-        // GET DATA
-        // ==========================================
 
         const file =
             voiceFile.files[0];
@@ -1066,23 +1051,15 @@ generateButton.addEventListener(
             textInput.value.trim();
 
 
-        // ==========================================
-        // CHECK FILE
-        // ==========================================
-
         if (!file) {
 
             alert(
-                "Please upload your authorized voice sample first."
+                "Please upload a voice sample first."
             );
 
             return;
         }
 
-
-        // ==========================================
-        // CHECK TEXT
-        // ==========================================
 
         if (!text) {
 
@@ -1096,13 +1073,10 @@ generateButton.addEventListener(
         }
 
 
-        // ==========================================
-        // LOADING
-        // ==========================================
-
         generateButton.classList.add(
             "loading"
         );
+
 
         generateButton.innerHTML = `
             <span>⏳</span>
@@ -1112,18 +1086,15 @@ generateButton.addEventListener(
 
         try {
 
-
-            // ======================================
-            // FORM DATA
-            // ======================================
-
             const formData =
                 new FormData();
+
 
             formData.append(
                 "file",
                 file
             );
+
 
             formData.append(
                 "text",
@@ -1131,9 +1102,11 @@ generateButton.addEventListener(
             );
 
 
-            // ======================================
-            // SEND TO BACKEND
-            // ======================================
+            console.log(
+                "Sending request to:",
+                `${API_URL}/generate`
+            );
+
 
             const response =
                 await fetch(
@@ -1145,46 +1118,86 @@ generateButton.addEventListener(
                 );
 
 
-            // ======================================
-            // ERROR RESPONSE
-            // ======================================
+            console.log(
+                "Server status:",
+                response.status
+            );
+
+
+            /* =========================================
+               READ RESPONSE
+            ========================================= */
+
+            const contentType =
+                response.headers.get(
+                    "content-type"
+                ) || "";
+
 
             if (!response.ok) {
 
-                let errorMessage =
+                let message =
                     "Voice generation failed.";
 
-                try {
 
-                    const errorData =
-                        await response.json();
+                if (
+                    contentType.includes(
+                        "application/json"
+                    )
+                ) {
 
-                    if (
-                        errorData &&
-                        errorData.detail
-                    ) {
+                    try {
 
-                        errorMessage =
-                            errorData.detail;
-                    }
+                        const data =
+                            await response.json();
 
-                } catch (error) {
+                        message =
+                            data.detail ||
+                            message;
 
-                    console.error(
-                        "Could not read error response:",
-                        error
-                    );
+                    } catch (e) {}
+
+                } else {
+
+                    try {
+
+                        message =
+                            await response.text();
+
+                    } catch (e) {}
+
                 }
 
+
                 throw new Error(
-                    errorMessage
+                    message
                 );
             }
 
 
-            // ======================================
-            // GET AUDIO
-            // ======================================
+            /* =========================================
+               MAKE SURE RESPONSE IS AUDIO
+            ========================================= */
+
+            if (
+                !contentType.includes(
+                    "audio"
+                )
+            ) {
+
+                const serverText =
+                    await response.text();
+
+                throw new Error(
+                    "Server returned something other than audio:\n\n" +
+                    serverText
+                );
+            }
+
+
+            /* =========================================
+               GET AUDIO
+            ========================================= */
 
             const audioBlob =
                 await response.blob();
@@ -1201,9 +1214,16 @@ generateButton.addEventListener(
             }
 
 
-            // ======================================
-            // CREATE AUDIO URL
-            // ======================================
+            console.log(
+                "Audio received:",
+                audioBlob.size,
+                "bytes"
+            );
+
+
+            /* =========================================
+               CREATE URL
+            ========================================= */
 
             const audioURL =
                 URL.createObjectURL(
@@ -1211,32 +1231,36 @@ generateButton.addEventListener(
                 );
 
 
-            // ======================================
-            // SHOW AUDIO
-            // ======================================
-
             audioPlayer.src =
                 audioURL;
 
+
             audioPlayer.hidden =
                 false;
+
 
             audioPlaceholder.style.display =
                 "none";
 
 
-            // ======================================
-            // PLAY AUDIO
-            // ======================================
+            /* =========================================
+               SHOW RESULT
+            ========================================= */
+
+            audioPlayer.scrollIntoView({
+                behavior: "smooth",
+                block: "center"
+            });
+
 
             try {
 
                 await audioPlayer.play();
 
-            } catch (playError) {
+            } catch (error) {
 
                 console.log(
-                    "Autoplay was blocked. Use the play button."
+                    "Autoplay blocked."
                 );
             }
 
@@ -1244,29 +1268,26 @@ generateButton.addEventListener(
         } catch (error) {
 
             console.error(
-                "Generation error:",
+                "VOICE GENERATION ERROR:",
                 error
             );
 
+
             alert(
-                "❌ " +
+                "❌ Generation failed:\n\n" +
                 (
                     error.message ||
-                    "Voice generation failed."
+                    "Unknown error"
                 )
             );
 
 
         } finally {
 
-
-            // ======================================
-            // RESTORE BUTTON
-            // ======================================
-
             generateButton.classList.remove(
                 "loading"
             );
+
 
             generateButton.innerHTML = `
                 <span class="button-icon">✨</span>
@@ -1278,7 +1299,6 @@ generateButton.addEventListener(
 );
 
 </script>
-
 </body>
 </html>
 ```
