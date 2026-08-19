@@ -1,6 +1,8 @@
+```python
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+
 from gradio_client import Client, handle_file
 
 from io import BytesIO
@@ -45,10 +47,80 @@ app.add_middleware(
 
 @app.get("/")
 def home():
+
     return {
         "status": "online",
         "message": "XTTS Voice Clone backend is running"
     }
+
+
+# ========================================
+# Find audio file
+# ========================================
+
+def find_audio_file(result):
+
+    # ------------------------------------
+    # String
+    # ------------------------------------
+
+    if isinstance(result, str):
+
+        if os.path.isfile(result):
+            return result
+
+        return None
+
+
+    # ------------------------------------
+    # List / Tuple
+    # ------------------------------------
+
+    if isinstance(result, (list, tuple)):
+
+        for item in result:
+
+            found = find_audio_file(item)
+
+            if found:
+                return found
+
+        return None
+
+
+    # ------------------------------------
+    # Dictionary
+    # ------------------------------------
+
+    if isinstance(result, dict):
+
+        for value in result.values():
+
+            found = find_audio_file(value)
+
+            if found:
+                return found
+
+        return None
+
+
+    # ------------------------------------
+    # Gradio FileData / object
+    # ------------------------------------
+
+    if hasattr(result, "path"):
+
+        path = getattr(
+            result,
+            "path",
+            None
+        )
+
+        if path and os.path.isfile(path):
+            return path
+
+
+    return None
 
 
 # ========================================
@@ -57,8 +129,11 @@ def home():
 
 @app.post("/generate")
 async def generate_voice(
+
     file: UploadFile = File(...),
+
     text: str = Form(...)
+
 ):
 
     # ====================================
@@ -68,12 +143,15 @@ async def generate_voice(
     text = text.strip()
 
     if not text:
+
         raise HTTPException(
             status_code=400,
             detail="Please enter some text."
         )
 
+
     if len(text) > 500:
+
         raise HTTPException(
             status_code=400,
             detail="Text is too long."
@@ -81,12 +159,14 @@ async def generate_voice(
 
 
     # ====================================
-    # Read uploaded audio
+    # Read audio
     # ====================================
 
     audio_data = await file.read()
 
+
     if not audio_data:
+
         raise HTTPException(
             status_code=400,
             detail="The uploaded audio file is empty."
@@ -94,13 +174,14 @@ async def generate_voice(
 
 
     print("================================")
-    print("FILE:", file.filename)
-    print("TYPE:", file.content_type)
-    print("SIZE:", len(audio_data))
+    print("INPUT FILE:", file.filename)
+    print("CONTENT TYPE:", file.content_type)
+    print("AUDIO SIZE:", len(audio_data))
     print("================================")
 
 
     temp_path = None
+
 
     try:
 
@@ -110,13 +191,16 @@ async def generate_voice(
 
         extension = ".wav"
 
+
         if file.filename:
 
             original_extension = os.path.splitext(
                 file.filename
             )[1]
 
+
             if original_extension:
+
                 extension = original_extension
 
 
@@ -130,14 +214,21 @@ async def generate_voice(
             temp_path = temp_file.name
 
 
-        print("TEMP FILE:", temp_path)
+        print(
+            "TEMP AUDIO:",
+            temp_path
+        )
 
 
         # ====================================
         # Connect to Hugging Face
         # ====================================
 
-        print("Connecting to Hugging Face...")
+        print(
+            "Connecting to:",
+            HF_SPACE
+        )
+
 
         if HF_TOKEN:
 
@@ -153,78 +244,92 @@ async def generate_voice(
             )
 
 
-        print("Connected successfully.")
-
-
-        # ====================================
-        # Generate cloned voice
-        # ====================================
-
-        print("Sending audio + text to XTTS...")
-
-
-        result = client.predict(
-            text,
-            handle_file(temp_path),
-            "ar",
-            api_name="/predict"
+        print(
+            "Connected to Hugging Face."
         )
 
 
-        print("XTTS RESULT:")
-        print(result)
+        # ====================================
+        # Generate voice
+        # ====================================
+
+        print(
+            "Sending request to XTTS..."
+        )
+
+
+        result = client.predict(
+
+            text,
+
+            handle_file(
+                temp_path
+            ),
+
+            "ar",
+
+            api_name="/predict"
+
+        )
 
 
         # ====================================
-        # Find generated audio
+        # DEBUG RESULT
         # ====================================
 
-        output_path = None
+        print(
+            "================================"
+        )
 
+        print(
+            "XTTS RAW RESULT:"
+        )
 
-        if isinstance(result, str):
+        print(
+            repr(result)
+        )
 
-            output_path = result
+        print(
+            "RESULT TYPE:",
+            type(result)
+        )
 
-
-        elif isinstance(result, tuple):
-
-            for item in result:
-
-                if isinstance(item, str):
-
-                    lower_item = item.lower()
-
-                    if (
-                        lower_item.endswith(".wav")
-                        or lower_item.endswith(".mp3")
-                        or lower_item.endswith(".flac")
-                    ):
-                        output_path = item
-                        break
+        print(
+            "================================"
+        )
 
 
         # ====================================
-        # Validate output
+        # Find output audio
+        # ====================================
+
+        output_path = find_audio_file(
+            result
+        )
+
+
+        # ====================================
+        # No audio
         # ====================================
 
         if not output_path:
 
             raise HTTPException(
+
                 status_code=502,
-                detail="XTTS did not return an audio file."
+
+                detail=(
+                    "XTTS did not return an audio file. "
+                    "Check Render logs for XTTS RAW RESULT."
+                )
+
             )
 
 
-        print("OUTPUT:", output_path)
-
-
-        if not os.path.exists(output_path):
-
-            raise HTTPException(
-                status_code=502,
-                detail="Generated audio file was not found."
-            )
+        print(
+            "OUTPUT AUDIO:",
+            output_path
+        )
 
 
         # ====================================
@@ -236,14 +341,19 @@ async def generate_voice(
             "rb"
         ) as audio_file:
 
-            generated_audio = audio_file.read()
+            generated_audio = (
+                audio_file.read()
+            )
 
 
         if not generated_audio:
 
             raise HTTPException(
+
                 status_code=502,
+
                 detail="Generated audio is empty."
+
             )
 
 
@@ -254,51 +364,80 @@ async def generate_voice(
 
 
         # ====================================
-        # Return audio
+        # Return WAV
         # ====================================
 
         return StreamingResponse(
-            BytesIO(generated_audio),
+
+            BytesIO(
+                generated_audio
+            ),
+
             media_type="audio/wav",
+
             headers={
                 "Content-Disposition":
                 'inline; filename="voice-clone.wav"'
             }
+
         )
 
 
     except HTTPException:
+
         raise
 
 
     except Exception as error:
 
-        print("================================")
-        print("XTTS ERROR:")
-        print(error)
-        print("================================")
+        print(
+            "================================"
+        )
+
+        print(
+            "XTTS ERROR:"
+        )
+
+        print(
+            repr(error)
+        )
+
+        print(
+            "================================"
+        )
+
 
         raise HTTPException(
+
             status_code=502,
+
             detail=(
-                "Voice generation failed. "
-                "Please try again."
+                "Voice generation failed: "
+                + str(error)
             )
+
         )
 
 
     finally:
 
         # ====================================
-        # Delete temporary file
+        # Delete temporary input
         # ====================================
 
         if temp_path:
 
             try:
 
-                if os.path.exists(temp_path):
-                    os.remove(temp_path)
+                if os.path.exists(
+                    temp_path
+                ):
+
+                    os.remove(
+                        temp_path
+                    )
 
             except Exception:
+
                 pass
+```
