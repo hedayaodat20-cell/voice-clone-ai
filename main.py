@@ -13,6 +13,8 @@ print("Loading XTTS-v2...")
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
+os.environ["COQUI_TOS_AGREED"] = "1"
+
 tts = TTS(
     "tts_models/multilingual/multi-dataset/xtts_v2",
     progress_bar=False
