@@ -2,4 +2,8 @@ fastapi
 uvicorn[standard]
 python-multipart
 python-dotenv
-coqui-tts
+
+torch==2.3.1
+torchaudio==2.3.1
+
+TTS==0.22.0
