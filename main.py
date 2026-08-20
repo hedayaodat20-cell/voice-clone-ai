@@ -1,7 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from gradio_client import Client, handle_file
+from TTS.api import TTS
+
 from io import BytesIO
 import os
 import tempfile
@@ -25,25 +26,31 @@ app.add_middleware(
 
 
 # =========================================================
-# HUGGING FACE SPACE
+# XTTS-V2
 # =========================================================
 
-SPACE_ID = "applore/xtts-voice-cloning-demo"
+MODEL_NAME = "tts_models/multilingual/multi-dataset/xtts_v2"
 
-client = None
+tts = None
 
 
-def get_client():
-    global client
+def get_tts():
+    global tts
 
-    if client is None:
-        print("Connecting to Hugging Face XTTS Space...")
+    if tts is None:
+        print("========================================")
+        print("Loading XTTS-v2...")
+        print("========================================")
 
-        client = Client(SPACE_ID)
+        tts = TTS(
+            model_name=MODEL_NAME,
+            progress_bar=False,
+            gpu=False
+        )
 
-        print("Connected to Hugging Face XTTS Space.")
+        print("XTTS-v2 loaded successfully.")
 
-    return client
+    return tts
 
 
 # =========================================================
@@ -55,7 +62,7 @@ async def home():
     return {
         "status": "online",
         "service": "Voice Clone AI",
-        "xtts_space": SPACE_ID
+        "model": MODEL_NAME
     }
 
 
@@ -66,7 +73,8 @@ async def home():
 @app.get("/health")
 async def health():
     return {
-        "status": "ok"
+        "status": "ok",
+        "model_loaded": tts is not None
     }
 
 
@@ -88,23 +96,50 @@ async def generate(
     print("Content type:", file.content_type)
     print("Text:", text)
 
-    if not text.strip():
+    # -----------------------------------------------------
+    # Validate text
+    # -----------------------------------------------------
+
+    text = text.strip()
+
+    if not text:
         raise HTTPException(
             status_code=400,
             detail="Text is empty."
         )
 
+    # -----------------------------------------------------
+    # Validate file
+    # -----------------------------------------------------
+
+    if not file.filename:
+        raise HTTPException(
+            status_code=400,
+            detail="No audio filename was provided."
+        )
+
+    voice_path = None
+    output_path = None
+
     try:
 
         # =================================================
-        # SAVE UPLOADED VOICE
+        # SAVE VOICE SAMPLE
         # =================================================
 
         suffix = os.path.splitext(
-            file.filename or ".wav"
-        )[1]
+            file.filename
+        )[1].lower()
 
-        if not suffix:
+        allowed_extensions = {
+            ".wav",
+            ".mp3",
+            ".m4a",
+            ".flac",
+            ".ogg"
+        }
+
+        if suffix not in allowed_extensions:
             suffix = ".wav"
 
         with tempfile.NamedTemporaryFile(
@@ -116,142 +151,93 @@ async def generate(
 
             content = await file.read()
 
+            if not content:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Uploaded audio file is empty."
+                )
+
             temp_voice.write(content)
 
-        print("Voice saved to:", voice_path)
-        print("Voice size:", os.path.getsize(voice_path))
-
-
-        # =================================================
-        # CONNECT TO SPACE
-        # =================================================
-
-        hf_client = get_client()
-
-
-        # =================================================
-        # CALL XTTS
-        #
-        # The Space's predict function is:
-        #
-        # predict(text, speaker_wav, language)
-        #
-        # Arabic = ar
-        # =================================================
-
-        print("Calling XTTS...")
-
-        result = hf_client.predict(
-            text=text,
-            speaker_wav=handle_file(voice_path),
-            language="ar",
-            api_name="/predict"
+        print("Voice saved:", voice_path)
+        print(
+            "Voice size:",
+            os.path.getsize(voice_path),
+            "bytes"
         )
 
-        print("========================================")
-        print("XTTS RESULT:")
-        print(repr(result))
-        print("========================================")
-
-
         # =================================================
-        # FIND AUDIO RESULT
+        # LOAD XTTS
         # =================================================
 
-        audio_path = None
-
-        if isinstance(result, str):
-
-            audio_path = result
-
-        elif isinstance(result, (list, tuple)):
-
-            for item in result:
-
-                if isinstance(item, str):
-
-                    lower = item.lower()
-
-                    if (
-                        lower.endswith(".wav")
-                        or lower.endswith(".mp3")
-                        or lower.endswith(".flac")
-                        or lower.endswith(".ogg")
-                    ):
-                        audio_path = item
-                        break
-
-
-                elif isinstance(item, dict):
-
-                    possible = (
-                        item.get("path")
-                        or item.get("url")
-                        or item.get("name")
-                    )
-
-                    if possible:
-                        audio_path = possible
-                        break
-
-
-        elif isinstance(result, dict):
-
-            audio_path = (
-                result.get("path")
-                or result.get("url")
-                or result.get("name")
-            )
-
+        model = get_tts()
 
         # =================================================
-        # NO AUDIO
+        # OUTPUT FILE
         # =================================================
 
-        if not audio_path:
+        output_file = tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".wav"
+        )
 
+        output_path = output_file.name
+
+        output_file.close()
+
+        print("Output path:", output_path)
+
+        # =================================================
+        # GENERATE
+        # =================================================
+
+        print("Generating Arabic voice...")
+
+        model.tts_to_file(
+            text=text,
+            speaker_wav=voice_path,
+            language="ar",
+            file_path=output_path
+        )
+
+        print("XTTS generation finished.")
+
+        # =================================================
+        # CHECK OUTPUT
+        # =================================================
+
+        if not os.path.exists(output_path):
             raise RuntimeError(
-                "XTTS did not return an audio file. "
-                f"Raw result: {repr(result)}"
+                "XTTS did not create an output audio file."
             )
 
+        audio_size = os.path.getsize(output_path)
 
-        print("Audio path:", audio_path)
+        if audio_size == 0:
+            raise RuntimeError(
+                "XTTS created an empty audio file."
+            )
 
+        print(
+            "Audio generated successfully:",
+            audio_size,
+            "bytes"
+        )
 
         # =================================================
         # READ AUDIO
         # =================================================
 
-        if not os.path.exists(audio_path):
-
-            raise RuntimeError(
-                f"XTTS returned a path that does not exist: "
-                f"{audio_path}"
-            )
-
-
-        with open(audio_path, "rb") as audio_file:
-
+        with open(output_path, "rb") as audio_file:
             audio_data = audio_file.read()
 
-
         if not audio_data:
-
             raise RuntimeError(
-                "XTTS returned an empty audio file."
+                "Generated audio data is empty."
             )
 
-
-        print(
-            "Audio generated successfully:",
-            len(audio_data),
-            "bytes"
-        )
-
-
         # =================================================
-        # RETURN WAV
+        # RETURN AUDIO
         # =================================================
 
         return StreamingResponse(
@@ -259,10 +245,14 @@ async def generate(
             media_type="audio/wav",
             headers={
                 "Content-Disposition":
-                    'inline; filename="generated_voice.wav"'
+                    'inline; filename="generated_voice.wav"',
+                "Content-Length":
+                    str(len(audio_data))
             }
         )
 
+    except HTTPException:
+        raise
 
     except Exception as e:
 
@@ -274,17 +264,27 @@ async def generate(
 
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail=f"XTTS generation failed: {str(e)}"
         )
-
 
     finally:
 
+        # =================================================
+        # CLEAN TEMP FILES
+        # =================================================
+
         try:
 
-            if "voice_path" in locals():
-                if os.path.exists(voice_path):
-                    os.remove(voice_path)
+            if voice_path and os.path.exists(voice_path):
+                os.remove(voice_path)
+
+        except Exception:
+            pass
+
+        try:
+
+            if output_path and os.path.exists(output_path):
+                os.remove(output_path)
 
         except Exception:
             pass
