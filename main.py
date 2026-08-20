@@ -1,17 +1,24 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, Response
-from gradio_client import Client, handle_file
+from TTS.api import TTS
 import tempfile
 import os
-import shutil
+import torch
+import torchaudio
 
 app = FastAPI()
 
-# XTTS Gradio Space
-XTTS_SPACE = "https://applore-xtts-voice-cloning-demo.hf.space"
+# تحميل XTTS-v2
+print("Loading XTTS-v2...")
 
-# نفتح اتصال Gradio مرة واحدة
-client = Client(XTTS_SPACE)
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+tts = TTS(
+    "tts_models/multilingual/multi-dataset/xtts_v2",
+    progress_bar=False
+).to(device)
+
+print("XTTS-v2 loaded successfully!")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -22,6 +29,7 @@ async def home():
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
         <title>Voice Clone AI</title>
 
         <style>
@@ -57,26 +65,12 @@ async def home():
             }
 
             button:disabled {
-                opacity: .5;
-                cursor: not-allowed;
+                opacity: .6;
             }
 
             audio {
                 width: 100%;
                 margin-top: 20px;
-            }
-
-            #download {
-                display: none;
-                width: 100%;
-                box-sizing: border-box;
-                margin-top: 12px;
-                padding: 13px;
-                background: #eee;
-                color: #111;
-                text-align: center;
-                text-decoration: none;
-                border-radius: 8px;
             }
 
             #status {
@@ -87,12 +81,13 @@ async def home():
     </head>
 
     <body>
+
         <div class="box">
 
             <h1>🎙️ Voice Clone AI</h1>
 
             <p>
-                اختاري ملف صوتي قصير، اكتبي النص، ثم اضغطي توليد الصوت.
+                ارفعي تسجيل صوتي، ثم اكتبي النص الذي تريدين تحويله إلى صوت.
             </p>
 
             <input
@@ -104,98 +99,119 @@ async def home():
             <textarea
                 id="text"
                 rows="5"
-                placeholder="اكتبي النص الذي تريدين تحويله إلى صوت..."
+                placeholder="اكتبي النص هنا..."
             ></textarea>
 
-            <button id="generateBtn" onclick="generate()">
-                🎙️ توليد الصوت
+            <button id="button" onclick="generate()">
+                توليد الصوت
             </button>
 
             <div id="status"></div>
 
             <audio id="audio" controls></audio>
 
-            <a id="download" download="generated_voice.wav">
-                ⬇️ تحميل الصوت
-            </a>
-
         </div>
 
         <script>
+
         async function generate() {
 
-            const fileInput = document.getElementById("file");
-            const textInput = document.getElementById("text");
-            const status = document.getElementById("status");
-            const audio = document.getElementById("audio");
-            const download = document.getElementById("download");
-            const button = document.getElementById("generateBtn");
+            const file =
+                document.getElementById("file").files[0];
 
-            const file = fileInput.files[0];
-            const text = textInput.value.trim();
+            const text =
+                document.getElementById("text").value;
+
+            const status =
+                document.getElementById("status");
+
+            const audio =
+                document.getElementById("audio");
+
+            const button =
+                document.getElementById("button");
+
 
             if (!file) {
-                status.innerText = "❌ اختاري ملف صوتي أولاً";
+                status.innerText =
+                    "❌ اختاري ملف صوتي أولاً";
                 return;
             }
 
-            if (!text) {
-                status.innerText = "❌ اكتبي النص أولاً";
+
+            if (!text.trim()) {
+                status.innerText =
+                    "❌ اكتبي النص أولاً";
                 return;
             }
+
 
             button.disabled = true;
-            status.innerText = "⏳ جاري توليد الصوت... قد يستغرق بعض الوقت";
+
+            status.innerText =
+                "⏳ جاري توليد الصوت... قد يستغرق بعض الوقت";
+
 
             audio.removeAttribute("src");
-            download.style.display = "none";
+
 
             const form = new FormData();
 
             form.append("file", file);
             form.append("text", text);
 
+
             try {
 
-                const response = await fetch("/generate", {
-                    method: "POST",
-                    body: form
-                });
+                const response = await fetch(
+                    "/generate",
+                    {
+                        method: "POST",
+                        body: form
+                    }
+                );
+
 
                 if (!response.ok) {
-                    const error = await response.text();
+
+                    const error =
+                        await response.text();
+
                     throw new Error(error);
                 }
 
-                const blob = await response.blob();
 
-                if (blob.size === 0) {
-                    throw new Error("تم إنشاء ملف صوتي فارغ");
-                }
+                const blob =
+                    await response.blob();
 
-                const url = URL.createObjectURL(blob);
+                const url =
+                    URL.createObjectURL(blob);
+
 
                 audio.src = url;
+
                 audio.load();
 
-                download.href = url;
-                download.style.display = "block";
 
                 status.innerText =
-                    "✅ تم توليد الصوت! اضغطي ▶️ للتشغيل";
+                    "✅ تم توليد الصوت — اضغطي تشغيل ▶️";
 
-            } catch (error) {
+            }
 
-                console.error(error);
+            catch (error) {
 
                 status.innerText =
                     "❌ حدث خطأ: " + error.message;
 
-            } finally {
+            }
+
+            finally {
 
                 button.disabled = false;
+
             }
         }
+
         </script>
 
     </body>
@@ -209,100 +225,91 @@ async def generate(
     text: str = Form(...)
 ):
 
-    temp_path = None
-    result_path = None
+    input_path = None
+    output_path = None
 
     try:
 
-        # إنشاء ملف مؤقت للصوت المرفوع
-        suffix = os.path.splitext(file.filename or ".wav")[1] or ".wav"
+        # ملف الصوت المرجعي
+        audio_data = await file.read()
+
+        suffix = os.path.splitext(
+            file.filename or ".wav"
+        )[1]
+
+        if not suffix:
+            suffix = ".wav"
+
 
         with tempfile.NamedTemporaryFile(
             delete=False,
             suffix=suffix
-        ) as temp_file:
+        ) as f:
 
-            temp_path = temp_file.name
+            f.write(audio_data)
 
-            shutil.copyfileobj(
-                file.file,
-                temp_file
-            )
+            input_path = f.name
 
-        # إرسال الطلب إلى Gradio بالطريقة الصحيحة
-        result = client.predict(
-            text,
-            handle_file(temp_path),
-            "ar",
-            api_name="/predict"
+
+        # ملف الصوت الناتج
+        output_file = tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".wav"
         )
 
-        # نتيجة Gradio تكون عادة مسار ملف الصوت الناتج
-        if not result:
-            raise Exception("XTTS لم يرجع ملف صوتي")
+        output_path = output_file.name
 
-        if isinstance(result, (list, tuple)):
-            result = result[0]
+        output_file.close()
 
-        # بعض إصدارات Gradio ترجع dict
-        if isinstance(result, dict):
 
-            if "path" in result:
-                result_path = result["path"]
+        # XTTS-v2
+        tts.tts_to_file(
+            text=text,
+            speaker_wav=input_path,
+            language="ar",
+            file_path=output_path
+        )
 
-            elif "url" in result:
-                raise Exception(
-                    "XTTS أعاد رابطًا بدل ملف محلي"
-                )
 
-        else:
-            result_path = str(result)
+        with open(output_path, "rb") as f:
 
-        if not result_path or not os.path.exists(result_path):
-            raise Exception(
-                f"لم يتم العثور على ملف الصوت الناتج: {result_path}"
-            )
+            result = f.read()
 
-        # قراءة الصوت
-        with open(result_path, "rb") as audio_file:
-            audio_data = audio_file.read()
-
-        if not audio_data:
-            raise Exception("ملف الصوت الناتج فارغ")
 
         return Response(
-            content=audio_data,
+            content=result,
             media_type="audio/wav",
             headers={
                 "Content-Disposition":
-                    'inline; filename="generated_voice.wav"'
+                'inline; filename="generated_voice.wav"'
             }
         )
 
+
     except Exception as e:
 
-        print("XTTS ERROR:", repr(e))
-
         return Response(
-            content=f'{{"detail":"{str(e)}"}}',
+            content=f"XTTS error: {str(e)}",
             status_code=500,
-            media_type="application/json"
+            media_type="text/plain"
         )
+
 
     finally:
 
-        # حذف الملف المؤقت الذي رفعه المستخدم
-        if temp_path and os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except Exception:
-                pass
+        if input_path and os.path.exists(input_path):
+            os.remove(input_path)
+
+        if output_path and os.path.exists(output_path):
+            os.remove(output_path)
 
 
 @app.get("/health")
 async def health():
+
     return {
         "status": "online",
         "service": "Voice Clone AI",
-        "xtts_space": XTTS_SPACE
+        "model": "XTTS-v2",
+        "language": "ar"
     }
